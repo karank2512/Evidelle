@@ -1,6 +1,11 @@
 # Evaluating actual signals: routes and decisions needed
 
-Status, 18 November 2026: **no actual provenance, watermark or AI-detector signal has been evaluated yet.** The toy experiment in this repository is preparation only. It does not fulfil the evaluation of actual signals, and its results do not settle that question.
+Status, 18 November 2026:
+- **Route A (C2PA) was approved narrowly and has been run.** The approval covered the official `c2patool` binary and a few official test files, used offline inside the experiment folder. See [`../RESULTS_ACTUAL_C2PA.md`](../RESULTS_ACTUAL_C2PA.md).
+- **Routes B, C and D were not approved.** Actual watermark, SynthID and AI-detector signals therefore remain unevaluated.
+- The toy experiment is still preparation only. Its results do not settle questions about actual signals.
+
+The rest of this note is the route assessment as written before route A was approved.
 
 This note identifies the smallest real route to evaluating each kind of signal. It records what each route would need, and what stays unevaluated if it is skipped. The sources are the projects' public repositories, release pages and model metadata, read on 18 November 2026. Versions and sizes are as listed there on that date.
 

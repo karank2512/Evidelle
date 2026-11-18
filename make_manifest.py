@@ -11,7 +11,9 @@ TRACKED = ["README.md", "RESULTS.md", "run_experiment.py", "make_manifest.py", "
            "authexp/__init__.py", "authexp/prng.py", "authexp/imageio.py", "authexp/synth.py", "authexp/keys.py",
            "authexp/manifest.py", "authexp/watermark.py", "authexp/transforms.py", "authexp/evidence.py",
            "tests/test_core.py", "docs/ACTUAL_SIGNAL_ROUTES.md", "docs/Media authenticity and deepfake detection.md",
-           "docs/Media authenticity and deepfake detection source ledger.md"]
+           "docs/Media authenticity and deepfake detection source ledger.md",
+           "actual_c2pa/run_actual_c2pa.py", "actual_c2pa/settings/offline.toml", "tests/test_actual_c2pa.py",
+           "RESULTS_ACTUAL_C2PA.md", "results/actual_c2pa/actual_c2pa_results.json"]
 
 
 def sha(path):
@@ -39,6 +41,20 @@ def main():
               "| File | File SHA-256 | Pixel SHA-256 |", "|---|---|---|"]
     for name, h in sorted(r["artifact_hashes"].items()):
         lines.append("| %s | `%s` | `%s` |" % (name, h["file_sha256"], h["pixel_sha256"]))
+    actual = os.path.join(HERE, "results", "actual_c2pa", "actual_c2pa_results.json")
+    if os.path.exists(actual):
+        with open(actual) as f:
+            a = json.load(f)
+        lines += ["", "## External inputs for the actual-C2PA run (not committed)", "",
+                  "- Tool: `%s` %s, release %s" % (a["tool"]["name"], a["tool"]["version"], a["tool"]["release_url"]),
+                  "- Release asset: `%s`, %d bytes, SHA-256 `%s` (matches GitHub's recorded digest)" % (
+                      a["tool"]["asset"], a["tool"]["asset_size_bytes"], a["tool"]["asset_sha256_recorded_by_github"]),
+                  "- Extracted binary SHA-256: `%s`; reported version: `%s`" % (
+                      a["environment"]["tool_binary_sha256"], a["environment"]["c2patool_version_reported"]),
+                  "- Licence: %s; signing: %s" % (a["tool"]["license"], a["tool"]["signing"]),
+                  "", "| Sample | Source | SHA-256 | Git blob matches GitHub |", "|---|---|---|---|"]
+        for e in a["official_samples"]:
+            lines.append("| %s | %s | `%s` | %s |" % (e["file"], e["source"], e["sha256"], e.get("git_blob_sha_matches_github", "n/a (bundled)")))
     lines += ["", "## Committed files (SHA-256 at the time this manifest was generated)", "",
               "| File | SHA-256 |", "|---|---|"]
     for p in TRACKED:
