@@ -1,6 +1,12 @@
-# Offline authenticity-signal experiment (synthetic, non-intimate)
+# Offline authenticity-signal prep: toy mechanisms (synthetic, non-intimate)
 
-A small, bounded, offline experiment that shows what three kinds of signal can and cannot establish about an image:
+> **Status: preparation only. This is not the evaluation of actual signals.**
+>
+> - Everything here uses **toy** stand-ins: a toy signed manifest, not C2PA, and a toy watermark, not SynthID or any production scheme.
+> - **No actual provenance, watermark or AI-detector signal has been evaluated yet**, and these toy results do not settle that question.
+> - [`docs/ACTUAL_SIGNAL_ROUTES.md`](docs/ACTUAL_SIGNAL_ROUTES.md) lists the smallest real route for each signal. It covers the decision each route needs, its source, setup and cost, and what stays unevaluated if it is skipped.
+
+A small, bounded, offline preparation exercise. Using toy mechanisms, it shows what three kinds of signal can and cannot establish about an image:
 - provenance (a signed manifest);
 - watermarks;
 - plain metadata.
@@ -63,7 +69,9 @@ python3 make_manifest.py                   # writes MANIFEST.md (environment, pa
 3. **Plain metadata.** Camera-style text claims written onto a synthetic image, and whether they survive conversions.
 4. **Evidence-to-statement mapping** (`authexp/evidence.py`). Each signal state maps to the strongest statement it supports, or to an abstention. Never to "real" or "fake".
 
-## Results of the recorded run
+## Results of the recorded toy run (preparation only)
+
+These numbers describe the toy mechanisms only. They are not results for C2PA, SynthID, any production watermark or any AI-image detector.
 
 Full numbers are in [`RESULTS.md`](RESULTS.md) and [`results/results.json`](results/results.json). The environment and hashes are in [`MANIFEST.md`](MANIFEST.md).
 
@@ -104,6 +112,14 @@ Each of these shows a signal failing in a specific, reproducible way:
 - **Processing.** Local tools (libjpeg-turbo, libwebp, macOS `sips`) stand in for platform processing. They are not a model of any platform's pipeline. Screenshots, screen re-capture, filters and video were not tested.
 - **No shift or scale search** in the watermark detector. Adding one would recover cropped marks but raise the false-positive rate through multiple comparisons. This was not measured.
 - **No base rates.** No measured prevalence was used, and no detector was evaluated.
+
+## Evaluating actual signals (not done yet)
+
+See [`docs/ACTUAL_SIGNAL_ROUTES.md`](docs/ACTUAL_SIGNAL_ROUTES.md). In short:
+- No free route that avoids installing or downloading anything was available on this machine.
+- The smallest real routes are the official `c2patool` binary with official C2PA sample files, and the `invisible-watermark` package in a disposable virtual environment. Each needs an explicit decision.
+- SynthID can only be checked by uploading to Google.
+- AI-image detectors need PyTorch, model weights and a licensed test set.
 
 ## Relation to the research report
 

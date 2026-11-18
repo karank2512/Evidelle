@@ -10,7 +10,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 TRACKED = ["README.md", "RESULTS.md", "run_experiment.py", "make_manifest.py", "results/results.json",
            "authexp/__init__.py", "authexp/prng.py", "authexp/imageio.py", "authexp/synth.py", "authexp/keys.py",
            "authexp/manifest.py", "authexp/watermark.py", "authexp/transforms.py", "authexp/evidence.py",
-           "tests/test_core.py", "docs/Media authenticity and deepfake detection.md",
+           "tests/test_core.py", "docs/ACTUAL_SIGNAL_ROUTES.md", "docs/Media authenticity and deepfake detection.md",
            "docs/Media authenticity and deepfake detection source ledger.md"]
 
 
