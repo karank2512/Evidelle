@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+results/artifacts/
+results/results_quick.json
+results/full_run.log
+.DS_Store
