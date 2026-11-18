@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+results/artifacts/
+results/results_quick.json
+results/full_run.log
+.DS_Store
+tools/
+samples/
+results/actual_c2pa/work/

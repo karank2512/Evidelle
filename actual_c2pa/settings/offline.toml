@@ -1,0 +1,14 @@
+# Offline validation settings for the actual-C2PA experiment.
+# Network fetching is disabled here, and every run is also made inside a network-denied sandbox.
+version = 1
+
+[core]
+allowed_network_hosts = []
+
+[verify]
+verify_after_reading = true
+verify_after_sign = true
+verify_trust = true
+verify_timestamp_trust = true
+ocsp_fetch = false
+remote_manifest_fetch = false

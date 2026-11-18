@@ -1,0 +1,852 @@
+{
+ "environment": {
+  "c2patool_version_reported": "c2patool 0.27.23",
+  "test_signing_certificate": [
+   "subject=C=US, ST=CA, L=Somewhere, O=C2PA Test Signing Cert, OU=FOR TESTING_ONLY, CN=C2PA Signer",
+   "notBefore=Jun 10 18:46:40 2022 GMT",
+   "notAfter=Aug 26 18:46:40 2030 GMT"
+  ],
+  "tool_binary_sha256": "e16692d25664b8c5a192bb2d8a784a500fd745701577f33c85e49a555941f8e7"
+ },
+ "official_samples": [
+  {
+   "documented_expectation": "Valid claim with one ingredient; signed with C2PA Tool's test certificate",
+   "file": "adobe-20220124-CA.jpg",
+   "git_blob_sha_matches_github": true,
+   "license": "CC-BY-SA-4.0",
+   "no_trust_anchors": {
+    "claim_generator": "make_test_images/0.16.1 c2pa-rs/0.16.1",
+    "declared_digital_source_types": [],
+    "exit_code": 0,
+    "failure_codes": [
+     "signingCredential.untrusted"
+    ],
+    "informational_codes": [],
+    "ingredient_count": 1,
+    "signature_common_name": "C2PA Signer",
+    "signature_issuer": "C2PA Test Signing Cert",
+    "state": "Valid",
+    "success_codes": [
+     "assertion.dataHash.match",
+     "assertion.hashedURI.match",
+     "claimSignature.insideValidity",
+     "claimSignature.validated",
+     "timeStamp.trusted",
+     "timeStamp.validated"
+    ]
+   },
+   "sha256": "cafc48c53e651f7ba4622d1f72783827074211e42b9634cc863ec3be3c7651b3",
+   "source": "https://github.com/c2pa-org/public-testfiles/blob/main/legacy/1.4/image/jpeg/adobe-20220124-CA.jpg",
+   "test_trust_anchors": {
+    "claim_generator": "make_test_images/0.16.1 c2pa-rs/0.16.1",
+    "declared_digital_source_types": [],
+    "exit_code": 0,
+    "failure_codes": [],
+    "informational_codes": [],
+    "ingredient_count": 1,
+    "signature_common_name": "C2PA Signer",
+    "signature_issuer": "C2PA Test Signing Cert",
+    "state": "Trusted",
+    "success_codes": [
+     "assertion.dataHash.match",
+     "assertion.hashedURI.match",
+     "claimSignature.insideValidity",
+     "claimSignature.validated",
+     "signingCredential.trusted",
+     "timeStamp.trusted",
+     "timeStamp.validated"
+    ]
+   }
+  },
+  {
+   "documented_expectation": "Invalid credentials: invalid signature",
+   "file": "adobe-20220124-E-sig-CA.jpg",
+   "git_blob_sha_matches_github": true,
+   "license": "CC-BY-SA-4.0",
+   "no_trust_anchors": {
+    "claim_generator": "make_test_xxxxxx/0.16.1 c2pa-rs/0.16.1",
+    "declared_digital_source_types": [],
+    "exit_code": 0,
+    "failure_codes": [
+     "signingCredential.untrusted",
+     "claimSignature.mismatch"
+    ],
+    "informational_codes": [
+     "timeStamp.mismatch"
+    ],
+    "ingredient_count": 1,
+    "signature_common_name": "C2PA Signer",
+    "signature_issuer": "C2PA Test Signing Cert",
+    "state": "Invalid",
+    "success_codes": [
+     "assertion.dataHash.match",
+     "assertion.hashedURI.match"
+    ]
+   },
+   "sha256": "0d4c2774f1b7e94b9613bb952b0a76b6a178d22ac6d206d257d2af1376cbbff2",
+   "source": "https://github.com/c2pa-org/public-testfiles/blob/main/legacy/1.4/image/jpeg/adobe-20220124-E-sig-CA.jpg",
+   "test_trust_anchors": {
+    "claim_generator": "make_test_xxxxxx/0.16.1 c2pa-rs/0.16.1",
+    "declared_digital_source_types": [],
+    "exit_code": 0,
+    "failure_codes": [
+     "claimSignature.mismatch"
+    ],
+    "informational_codes": [
+     "timeStamp.mismatch"
+    ],
+    "ingredient_count": 1,
+    "signature_common_name": "C2PA Signer",
+    "signature_issuer": "C2PA Test Signing Cert",
+    "state": "Invalid",
+    "success_codes": [
+     "assertion.dataHash.match",
+     "assertion.hashedURI.match",
+     "signingCredential.trusted"
+    ]
+   }
+  },
+  {
+   "documented_expectation": "Invalid credentials: hard binding hash mismatch",
+   "file": "adobe-20220124-E-dat-CA.jpg",
+   "git_blob_sha_matches_github": true,
+   "license": "CC-BY-SA-4.0",
+   "no_trust_anchors": {
+    "claim_generator": "make_test_images/0.16.1 c2pa-rs/0.16.1",
+    "declared_digital_source_types": [],
+    "exit_code": 0,
+    "failure_codes": [
+     "signingCredential.untrusted",
+     "assertion.dataHash.mismatch"
+    ],
+    "informational_codes": [],
+    "ingredient_count": 1,
+    "signature_common_name": "C2PA Signer",
+    "signature_issuer": "C2PA Test Signing Cert",
+    "state": "Invalid",
+    "success_codes": [
+     "assertion.hashedURI.match",
+     "claimSignature.insideValidity",
+     "claimSignature.validated",
+     "timeStamp.trusted",
+     "timeStamp.validated"
+    ]
+   },
+   "sha256": "dae9d121060cec4b6f27ee8acda85ad461cf75f2261d90b463319b787342d7f9",
+   "source": "https://github.com/c2pa-org/public-testfiles/blob/main/legacy/1.4/image/jpeg/adobe-20220124-E-dat-CA.jpg",
+   "test_trust_anchors": {
+    "claim_generator": "make_test_images/0.16.1 c2pa-rs/0.16.1",
+    "declared_digital_source_types": [],
+    "exit_code": 0,
+    "failure_codes": [
+     "assertion.dataHash.mismatch"
+    ],
+    "informational_codes": [],
+    "ingredient_count": 1,
+    "signature_common_name": "C2PA Signer",
+    "signature_issuer": "C2PA Test Signing Cert",
+    "state": "Invalid",
+    "success_codes": [
+     "assertion.hashedURI.match",
+     "claimSignature.insideValidity",
+     "claimSignature.validated",
+     "signingCredential.trusted",
+     "timeStamp.trusted",
+     "timeStamp.validated"
+    ]
+   }
+  },
+  {
+   "documented_expectation": "Invalid credentials: assertion URI hash mismatch",
+   "file": "adobe-20220124-E-uri-CA.jpg",
+   "git_blob_sha_matches_github": true,
+   "license": "CC-BY-SA-4.0",
+   "no_trust_anchors": {
+    "claim_generator": "make_test_images/0.16.1 c2pa-rs/0.16.1",
+    "declared_digital_source_types": [],
+    "exit_code": 0,
+    "failure_codes": [
+     "signingCredential.untrusted",
+     "assertion.hashedURI.mismatch"
+    ],
+    "informational_codes": [],
+    "ingredient_count": 1,
+    "signature_common_name": "C2PA Signer",
+    "signature_issuer": "C2PA Test Signing Cert",
+    "state": "Invalid",
+    "success_codes": [
+     "assertion.dataHash.match",
+     "assertion.hashedURI.match",
+     "claimSignature.insideValidity",
+     "claimSignature.validated",
+     "timeStamp.trusted",
+     "timeStamp.validated"
+    ]
+   },
+   "sha256": "56014faf6b97532252c9bb90dcf484923a8aa7bba197e84a8555044a35e4f3a6",
+   "source": "https://github.com/c2pa-org/public-testfiles/blob/main/legacy/1.4/image/jpeg/adobe-20220124-E-uri-CA.jpg",
+   "test_trust_anchors": {
+    "claim_generator": "make_test_images/0.16.1 c2pa-rs/0.16.1",
+    "declared_digital_source_types": [],
+    "exit_code": 0,
+    "failure_codes": [
+     "assertion.hashedURI.mismatch"
+    ],
+    "informational_codes": [],
+    "ingredient_count": 1,
+    "signature_common_name": "C2PA Signer",
+    "signature_issuer": "C2PA Test Signing Cert",
+    "state": "Invalid",
+    "success_codes": [
+     "assertion.dataHash.match",
+     "assertion.hashedURI.match",
+     "claimSignature.insideValidity",
+     "claimSignature.validated",
+     "signingCredential.trusted",
+     "timeStamp.trusted",
+     "timeStamp.validated"
+    ]
+   }
+  },
+  {
+   "documented_expectation": "Example of camera capture details (production signer, not the test certificate)",
+   "file": "truepic-20230212-landscape.jpg",
+   "git_blob_sha_matches_github": true,
+   "license": "CC-BY-SA-4.0",
+   "no_trust_anchors": {
+    "claim_generator": [
+     "Truepic Lens SDK libc2pa C++ Library"
+    ],
+    "declared_digital_source_types": [],
+    "exit_code": 0,
+    "failure_codes": [
+     "signingCredential.untrusted"
+    ],
+    "informational_codes": [],
+    "ingredient_count": 0,
+    "signature_common_name": "Truepic Lens SDK v1.1.3 in Vision Camera v3.1.5",
+    "signature_issuer": "Truepic",
+    "state": "Valid",
+    "success_codes": [
+     "assertion.dataHash.match",
+     "assertion.hashedURI.match",
+     "claimSignature.insideValidity",
+     "claimSignature.validated",
+     "timeStamp.trusted",
+     "timeStamp.validated"
+    ]
+   },
+   "sha256": "e9a7d020de9edb1c13602f5e1a42fdb67e6ea1728d7f7d88a316cd2e3ce989c9",
+   "source": "https://github.com/c2pa-org/public-testfiles/blob/main/legacy/1.4/image/jpeg/truepic-20230212-landscape.jpg",
+   "test_trust_anchors": {
+    "claim_generator": [
+     "Truepic Lens SDK libc2pa C++ Library"
+    ],
+    "declared_digital_source_types": [],
+    "exit_code": 0,
+    "failure_codes": [
+     "signingCredential.untrusted"
+    ],
+    "informational_codes": [],
+    "ingredient_count": 0,
+    "signature_common_name": "Truepic Lens SDK v1.1.3 in Vision Camera v3.1.5",
+    "signature_issuer": "Truepic",
+    "state": "Valid",
+    "success_codes": [
+     "assertion.dataHash.match",
+     "assertion.hashedURI.match",
+     "claimSignature.insideValidity",
+     "claimSignature.validated",
+     "timeStamp.trusted",
+     "timeStamp.validated"
+    ]
+   }
+  },
+  {
+   "documented_expectation": "Bundled with c2patool (sample/); expectation not documented, observed only",
+   "file": "c2patool sample/C.jpg",
+   "license": "MIT OR Apache-2.0 (LICENSE-MIT and LICENSE-APACHE in contentauth/c2pa-rs)",
+   "no_trust_anchors": {
+    "claim_generator": "make_test_images/0.12.0 c2pa-rs/0.12.0",
+    "declared_digital_source_types": [],
+    "exit_code": 0,
+    "failure_codes": [
+     "signingCredential.untrusted"
+    ],
+    "informational_codes": [],
+    "ingredient_count": 0,
+    "signature_common_name": "C2PA Signer",
+    "signature_issuer": "C2PA Test Signing Cert",
+    "state": "Valid",
+    "success_codes": [
+     "assertion.dataHash.match",
+     "assertion.hashedURI.match",
+     "claimSignature.insideValidity",
+     "claimSignature.validated",
+     "timeStamp.trusted",
+     "timeStamp.validated"
+    ]
+   },
+   "sha256": "5f57bc22ad54aab1228874e831a6feb5514e5875307945c4e4b11aae6c53e8b7",
+   "source": "https://github.com/contentauth/c2pa-rs/releases/tag/c2patool-v0.27.23",
+   "test_trust_anchors": {
+    "claim_generator": "make_test_images/0.12.0 c2pa-rs/0.12.0",
+    "declared_digital_source_types": [],
+    "exit_code": 0,
+    "failure_codes": [],
+    "informational_codes": [],
+    "ingredient_count": 0,
+    "signature_common_name": "C2PA Signer",
+    "signature_issuer": "C2PA Test Signing Cert",
+    "state": "Trusted",
+    "success_codes": [
+     "assertion.dataHash.match",
+     "assertion.hashedURI.match",
+     "claimSignature.insideValidity",
+     "claimSignature.validated",
+     "signingCredential.trusted",
+     "timeStamp.trusted",
+     "timeStamp.validated"
+    ]
+   }
+  },
+  {
+   "documented_expectation": "Bundled with c2patool (sample/); expectation not documented, observed only",
+   "file": "c2patool sample/image.jpg",
+   "license": "MIT OR Apache-2.0 (LICENSE-MIT and LICENSE-APACHE in contentauth/c2pa-rs)",
+   "no_trust_anchors": {
+    "exit_code": 1,
+    "message": "Error: No claim found",
+    "state": "NO_MANIFEST"
+   },
+   "sha256": "f999fd78bfe8a83c96e468a078830ba94485bc1bc6fd086fb94a43bd29dd0f23",
+   "source": "https://github.com/contentauth/c2pa-rs/releases/tag/c2patool-v0.27.23",
+   "test_trust_anchors": {
+    "exit_code": 1,
+    "message": "Error: No claim found",
+    "state": "NO_MANIFEST"
+   }
+  }
+ ],
+ "offline_controls": {
+  "allowed_network_hosts": [],
+  "ocsp_fetch": false,
+  "remote_manifest_fetch": false,
+  "sandbox_profile": "(version 1)(allow default)(deny network*)",
+  "settings_file": "actual_c2pa/settings/offline.toml",
+  "timestamp_authority": "none used when signing",
+  "trust_anchor_sources": "local files only (c2patool sample/trust_anchors.pem and sample/store.cfg)"
+ },
+ "state_meanings": {
+  "ERROR": "The tool reported an error. The result is unknown.",
+  "Invalid": "The manifest fails validation (see the failure codes). No conclusion about origin is supported.",
+  "NO_MANIFEST": "c2patool found no C2PA manifest. Absence is not evidence either way.",
+  "Trusted": "The signature is valid and chains to the configured trust anchors. Here those are C2PA TEST anchors (FOR TESTING ONLY) unless stated otherwise. The signed claims are the signer's declarations; this does not establish that the depicted scene is real.",
+  "Valid": "The manifest is intact and the signature is valid, but the signer does not chain to a configured trust anchor (see signingCredential.untrusted). The signer's identity is not established."
+ },
+ "synthetic_cases": [
+  {
+   "c2pa_chunk_present": true,
+   "description": "Synthetic landscape signed with TEST credentials, declared algorithmicMedia; unchanged.",
+   "file": "results/actual_c2pa/work/L0_signed.png",
+   "id": "A01_png_signed_intact",
+   "no_trust_anchors": {
+    "claim_generator": [
+     "authexp-actual-c2pa"
+    ],
+    "declared_digital_source_types": [
+     "algorithmicMedia"
+    ],
+    "exit_code": 0,
+    "failure_codes": [
+     "signingCredential.untrusted"
+    ],
+    "informational_codes": [],
+    "ingredient_count": 0,
+    "signature_common_name": "C2PA Signer",
+    "signature_issuer": "C2PA Test Signing Cert",
+    "state": "Valid",
+    "success_codes": [
+     "assertion.dataHash.match",
+     "assertion.hashedURI.match",
+     "claimSignature.insideValidity",
+     "claimSignature.validated"
+    ]
+   },
+   "test_trust_anchors": {
+    "claim_generator": [
+     "authexp-actual-c2pa"
+    ],
+    "declared_digital_source_types": [
+     "algorithmicMedia"
+    ],
+    "exit_code": 0,
+    "failure_codes": [],
+    "informational_codes": [],
+    "ingredient_count": 0,
+    "signature_common_name": "C2PA Signer",
+    "signature_issuer": "C2PA Test Signing Cert",
+    "state": "Trusted",
+    "success_codes": [
+     "assertion.dataHash.match",
+     "assertion.hashedURI.match",
+     "claimSignature.insideValidity",
+     "claimSignature.validated",
+     "signingCredential.trusted"
+    ]
+   }
+  },
+  {
+   "c2pa_chunk_present": true,
+   "description": "Same pixels, IDAT re-compressed (zlib level 1); C2PA chunk kept in place.",
+   "file": "results/actual_c2pa/work/A02.png",
+   "id": "A02_png_lossless_recompress",
+   "no_trust_anchors": {
+    "claim_generator": [
+     "authexp-actual-c2pa"
+    ],
+    "declared_digital_source_types": [
+     "algorithmicMedia"
+    ],
+    "exit_code": 0,
+    "failure_codes": [
+     "signingCredential.untrusted",
+     "assertion.dataHash.mismatch"
+    ],
+    "informational_codes": [],
+    "ingredient_count": 0,
+    "signature_common_name": "C2PA Signer",
+    "signature_issuer": "C2PA Test Signing Cert",
+    "state": "Invalid",
+    "success_codes": [
+     "assertion.hashedURI.match",
+     "claimSignature.insideValidity",
+     "claimSignature.validated"
+    ]
+   },
+   "test_trust_anchors": {
+    "claim_generator": [
+     "authexp-actual-c2pa"
+    ],
+    "declared_digital_source_types": [
+     "algorithmicMedia"
+    ],
+    "exit_code": 0,
+    "failure_codes": [
+     "assertion.dataHash.mismatch"
+    ],
+    "informational_codes": [],
+    "ingredient_count": 0,
+    "signature_common_name": "C2PA Signer",
+    "signature_issuer": "C2PA Test Signing Cert",
+    "state": "Invalid",
+    "success_codes": [
+     "assertion.hashedURI.match",
+     "claimSignature.insideValidity",
+     "claimSignature.validated",
+     "signingCredential.trusted"
+    ]
+   }
+  },
+  {
+   "c2pa_chunk_present": true,
+   "description": "One colour value changed by 1; C2PA chunk kept.",
+   "file": "results/actual_c2pa/work/A03.png",
+   "id": "A03_png_one_value_changed",
+   "no_trust_anchors": {
+    "claim_generator": [
+     "authexp-actual-c2pa"
+    ],
+    "declared_digital_source_types": [
+     "algorithmicMedia"
+    ],
+    "exit_code": 0,
+    "failure_codes": [
+     "signingCredential.untrusted",
+     "assertion.dataHash.mismatch"
+    ],
+    "informational_codes": [],
+    "ingredient_count": 0,
+    "signature_common_name": "C2PA Signer",
+    "signature_issuer": "C2PA Test Signing Cert",
+    "state": "Invalid",
+    "success_codes": [
+     "assertion.hashedURI.match",
+     "claimSignature.insideValidity",
+     "claimSignature.validated"
+    ]
+   },
+   "test_trust_anchors": {
+    "claim_generator": [
+     "authexp-actual-c2pa"
+    ],
+    "declared_digital_source_types": [
+     "algorithmicMedia"
+    ],
+    "exit_code": 0,
+    "failure_codes": [
+     "assertion.dataHash.mismatch"
+    ],
+    "informational_codes": [],
+    "ingredient_count": 0,
+    "signature_common_name": "C2PA Signer",
+    "signature_issuer": "C2PA Test Signing Cert",
+    "state": "Invalid",
+    "success_codes": [
+     "assertion.hashedURI.match",
+     "claimSignature.insideValidity",
+     "claimSignature.validated",
+     "signingCredential.trusted"
+    ]
+   }
+  },
+  {
+   "c2pa_chunk_present": true,
+   "description": "Cropped by 8 px; C2PA chunk kept.",
+   "file": "results/actual_c2pa/work/A04.png",
+   "id": "A04_png_crop_8px",
+   "no_trust_anchors": {
+    "claim_generator": [
+     "authexp-actual-c2pa"
+    ],
+    "declared_digital_source_types": [
+     "algorithmicMedia"
+    ],
+    "exit_code": 0,
+    "failure_codes": [
+     "signingCredential.untrusted",
+     "assertion.dataHash.mismatch"
+    ],
+    "informational_codes": [],
+    "ingredient_count": 0,
+    "signature_common_name": "C2PA Signer",
+    "signature_issuer": "C2PA Test Signing Cert",
+    "state": "Invalid",
+    "success_codes": [
+     "assertion.hashedURI.match",
+     "claimSignature.insideValidity",
+     "claimSignature.validated"
+    ]
+   },
+   "test_trust_anchors": {
+    "claim_generator": [
+     "authexp-actual-c2pa"
+    ],
+    "declared_digital_source_types": [
+     "algorithmicMedia"
+    ],
+    "exit_code": 0,
+    "failure_codes": [
+     "assertion.dataHash.mismatch"
+    ],
+    "informational_codes": [],
+    "ingredient_count": 0,
+    "signature_common_name": "C2PA Signer",
+    "signature_issuer": "C2PA Test Signing Cert",
+    "state": "Invalid",
+    "success_codes": [
+     "assertion.hashedURI.match",
+     "claimSignature.insideValidity",
+     "claimSignature.validated",
+     "signingCredential.trusted"
+    ]
+   }
+  },
+  {
+   "c2pa_chunk_present": false,
+   "description": "C2PA chunk removed; pixels and IDAT bytes unchanged.",
+   "file": "results/actual_c2pa/work/A05.png",
+   "id": "A05_png_c2pa_chunk_removed",
+   "no_trust_anchors": {
+    "exit_code": 1,
+    "message": "Error: No claim found",
+    "state": "NO_MANIFEST"
+   },
+   "test_trust_anchors": {
+    "exit_code": 1,
+    "message": "Error: No claim found",
+    "state": "NO_MANIFEST"
+   }
+  },
+  {
+   "c2pa_chunk_present": true,
+   "description": "C2PA chunk from the signed landscape inserted into a different synthetic image.",
+   "file": "results/actual_c2pa/work/A06.png",
+   "id": "A06_png_manifest_transplanted",
+   "no_trust_anchors": {
+    "claim_generator": [
+     "authexp-actual-c2pa"
+    ],
+    "declared_digital_source_types": [
+     "algorithmicMedia"
+    ],
+    "exit_code": 0,
+    "failure_codes": [
+     "signingCredential.untrusted",
+     "assertion.dataHash.mismatch"
+    ],
+    "informational_codes": [],
+    "ingredient_count": 0,
+    "signature_common_name": "C2PA Signer",
+    "signature_issuer": "C2PA Test Signing Cert",
+    "state": "Invalid",
+    "success_codes": [
+     "assertion.hashedURI.match",
+     "claimSignature.insideValidity",
+     "claimSignature.validated"
+    ]
+   },
+   "test_trust_anchors": {
+    "claim_generator": [
+     "authexp-actual-c2pa"
+    ],
+    "declared_digital_source_types": [
+     "algorithmicMedia"
+    ],
+    "exit_code": 0,
+    "failure_codes": [
+     "assertion.dataHash.mismatch"
+    ],
+    "informational_codes": [],
+    "ingredient_count": 0,
+    "signature_common_name": "C2PA Signer",
+    "signature_issuer": "C2PA Test Signing Cert",
+    "state": "Invalid",
+    "success_codes": [
+     "assertion.hashedURI.match",
+     "claimSignature.insideValidity",
+     "claimSignature.validated",
+     "signingCredential.trusted"
+    ]
+   }
+  },
+  {
+   "c2pa_chunk_present": false,
+   "description": "Signed PNG re-saved as PNG by macOS sips.",
+   "file": "results/actual_c2pa/work/A07.png",
+   "id": "A07_png_sips_resave",
+   "no_trust_anchors": {
+    "exit_code": 1,
+    "message": "Error: No claim found",
+    "state": "NO_MANIFEST"
+   },
+   "test_trust_anchors": {
+    "exit_code": 1,
+    "message": "Error: No claim found",
+    "state": "NO_MANIFEST"
+   }
+  },
+  {
+   "c2pa_chunk_present": true,
+   "description": "The same synthetic landscape signed with TEST credentials but declared digitalCapture (a false claim, made deliberately).",
+   "file": "results/actual_c2pa/work/L0_false_capture.png",
+   "id": "A08_png_false_capture_claim",
+   "no_trust_anchors": {
+    "claim_generator": [
+     "authexp-actual-c2pa"
+    ],
+    "declared_digital_source_types": [
+     "digitalCapture"
+    ],
+    "exit_code": 0,
+    "failure_codes": [
+     "signingCredential.untrusted"
+    ],
+    "informational_codes": [],
+    "ingredient_count": 0,
+    "signature_common_name": "C2PA Signer",
+    "signature_issuer": "C2PA Test Signing Cert",
+    "state": "Valid",
+    "success_codes": [
+     "assertion.dataHash.match",
+     "assertion.hashedURI.match",
+     "claimSignature.insideValidity",
+     "claimSignature.validated"
+    ]
+   },
+   "test_trust_anchors": {
+    "claim_generator": [
+     "authexp-actual-c2pa"
+    ],
+    "declared_digital_source_types": [
+     "digitalCapture"
+    ],
+    "exit_code": 0,
+    "failure_codes": [],
+    "informational_codes": [],
+    "ingredient_count": 0,
+    "signature_common_name": "C2PA Signer",
+    "signature_issuer": "C2PA Test Signing Cert",
+    "state": "Trusted",
+    "success_codes": [
+     "assertion.dataHash.match",
+     "assertion.hashedURI.match",
+     "claimSignature.insideValidity",
+     "claimSignature.validated",
+     "signingCredential.trusted"
+    ]
+   }
+  },
+  {
+   "c2pa_chunk_present": null,
+   "description": "Synthetic landscape JPEG signed with TEST credentials; unchanged.",
+   "file": "results/actual_c2pa/work/L1_signed.jpg",
+   "id": "B01_jpeg_signed_intact",
+   "no_trust_anchors": {
+    "claim_generator": [
+     "authexp-actual-c2pa"
+    ],
+    "declared_digital_source_types": [
+     "algorithmicMedia"
+    ],
+    "exit_code": 0,
+    "failure_codes": [
+     "signingCredential.untrusted"
+    ],
+    "informational_codes": [],
+    "ingredient_count": 0,
+    "signature_common_name": "C2PA Signer",
+    "signature_issuer": "C2PA Test Signing Cert",
+    "state": "Valid",
+    "success_codes": [
+     "assertion.dataHash.match",
+     "assertion.hashedURI.match",
+     "claimSignature.insideValidity",
+     "claimSignature.validated"
+    ]
+   },
+   "test_trust_anchors": {
+    "claim_generator": [
+     "authexp-actual-c2pa"
+    ],
+    "declared_digital_source_types": [
+     "algorithmicMedia"
+    ],
+    "exit_code": 0,
+    "failure_codes": [],
+    "informational_codes": [],
+    "ingredient_count": 0,
+    "signature_common_name": "C2PA Signer",
+    "signature_issuer": "C2PA Test Signing Cert",
+    "state": "Trusted",
+    "success_codes": [
+     "assertion.dataHash.match",
+     "assertion.hashedURI.match",
+     "claimSignature.insideValidity",
+     "claimSignature.validated",
+     "signingCredential.trusted"
+    ]
+   }
+  },
+  {
+   "c2pa_chunk_present": null,
+   "description": "jpegtran -copy all -optimize (lossless; all markers copied).",
+   "file": "results/actual_c2pa/work/B02.jpg",
+   "id": "B02_jpeg_lossless_transcode_markers_kept",
+   "no_trust_anchors": {
+    "claim_generator": [
+     "authexp-actual-c2pa"
+    ],
+    "declared_digital_source_types": [
+     "algorithmicMedia"
+    ],
+    "exit_code": 0,
+    "failure_codes": [
+     "signingCredential.untrusted",
+     "assertion.dataHash.mismatch"
+    ],
+    "informational_codes": [],
+    "ingredient_count": 0,
+    "signature_common_name": "C2PA Signer",
+    "signature_issuer": "C2PA Test Signing Cert",
+    "state": "Invalid",
+    "success_codes": [
+     "assertion.hashedURI.match",
+     "claimSignature.insideValidity",
+     "claimSignature.validated"
+    ]
+   },
+   "test_trust_anchors": {
+    "claim_generator": [
+     "authexp-actual-c2pa"
+    ],
+    "declared_digital_source_types": [
+     "algorithmicMedia"
+    ],
+    "exit_code": 0,
+    "failure_codes": [
+     "assertion.dataHash.mismatch"
+    ],
+    "informational_codes": [],
+    "ingredient_count": 0,
+    "signature_common_name": "C2PA Signer",
+    "signature_issuer": "C2PA Test Signing Cert",
+    "state": "Invalid",
+    "success_codes": [
+     "assertion.hashedURI.match",
+     "claimSignature.insideValidity",
+     "claimSignature.validated",
+     "signingCredential.trusted"
+    ]
+   }
+  },
+  {
+   "c2pa_chunk_present": null,
+   "description": "jpegtran -copy none (lossless; extra markers dropped).",
+   "file": "results/actual_c2pa/work/B03.jpg",
+   "id": "B03_jpeg_lossless_transcode_markers_dropped",
+   "no_trust_anchors": {
+    "exit_code": 1,
+    "message": "Error: No claim found",
+    "state": "NO_MANIFEST"
+   },
+   "test_trust_anchors": {
+    "exit_code": 1,
+    "message": "Error: No claim found",
+    "state": "NO_MANIFEST"
+   }
+  },
+  {
+   "c2pa_chunk_present": null,
+   "description": "Decoded and re-encoded at JPEG quality 75 (libjpeg-turbo).",
+   "file": "results/actual_c2pa/work/B04.jpg",
+   "id": "B04_jpeg_reencode_q75",
+   "no_trust_anchors": {
+    "exit_code": 1,
+    "message": "Error: No claim found",
+    "state": "NO_MANIFEST"
+   },
+   "test_trust_anchors": {
+    "exit_code": 1,
+    "message": "Error: No claim found",
+    "state": "NO_MANIFEST"
+   }
+  },
+  {
+   "c2pa_chunk_present": null,
+   "description": "Signed JPEG re-saved as JPEG (quality 80) by macOS sips.",
+   "file": "results/actual_c2pa/work/B05.jpg",
+   "id": "B05_jpeg_sips_resave_q80",
+   "no_trust_anchors": {
+    "exit_code": 1,
+    "message": "Error: No claim found",
+    "state": "NO_MANIFEST"
+   },
+   "test_trust_anchors": {
+    "exit_code": 1,
+    "message": "Error: No claim found",
+    "state": "NO_MANIFEST"
+   }
+  }
+ ],
+ "tool": {
+  "asset": "c2patool-v0.27.23-universal-apple-darwin.zip",
+  "asset_sha256_recorded_by_github": "380647e657ed16bb7e61982bd52f6c0b49a1cd92f09dbef49febd0f4c439a673",
+  "asset_size_bytes": 20800495,
+  "license": "MIT OR Apache-2.0 (LICENSE-MIT and LICENSE-APACHE in contentauth/c2pa-rs)",
+  "name": "c2patool",
+  "release_url": "https://github.com/contentauth/c2pa-rs/releases/tag/c2patool-v0.27.23",
+  "signing": "ad-hoc linker signature; no Developer ID or notarization (integrity relies on the GitHub-recorded digest)",
+  "version": "0.27.23"
+ }
+}
