@@ -172,7 +172,7 @@ footer.page dl.facts { font-size: .82rem; }
       <li>Production trust and certificate revocation were not evaluated for any case.</li>
     </ul>
   </header>
-  <noscript><p class="banner">This viewer needs JavaScript to show the cases. The recorded evidence is in the <code>evidence/</code> folder next to this file.</p></noscript>
+  <noscript><p class="banner">This viewer needs JavaScript to show the results. The results are embedded in this file; nothing is loaded from the network.</p></noscript>
   <main class="layout">
     <nav class="cases" aria-label="Cases">
       <h2 id="cases-heading">Cases</h2>
@@ -187,6 +187,8 @@ footer.page dl.facts { font-size: .82rem; }
   "use strict";
   var DATA = /*__EVIDENCE_DATA__*/null;
   if (!DATA) { return; }
+  // "local_check": built by check_files.py from the user's own files; otherwise the recorded demonstration cases.
+  var LOCAL = DATA.mode === "local_check";
 
   var POL = ["no_trust_anchors", "test_trust_anchors"];
   var POL_SHORT = { no_trust_anchors: "A", test_trust_anchors: "B" };
@@ -197,6 +199,7 @@ footer.page dl.facts { font-size: .82rem; }
   };
   var byId = {};
   DATA.cases.forEach(function (c) { byId[c.id] = c; });
+  if (LOCAL) { DATA.cases.forEach(function (c) { c.interpretation = localReading(c); }); }
   var current = null;
 
   function el(tag, attrs) {
@@ -246,8 +249,8 @@ footer.page dl.facts { font-size: .82rem; }
     var am = (rep.validation_results && rep.validation_results.activeManifest) || {};
     ["success", "informational", "failure"].forEach(function (kind) {
       var seen = {};
-      (am[kind] || []).forEach(function (x) {
-        if (!filter(x.code)) { return; }
+      (Array.isArray(am[kind]) ? am[kind] : []).forEach(function (x) {
+        if (!x || typeof x.code !== "string" || !filter(x.code)) { return; }
         var key = x.code;
         if (seen[key]) { seen[key].count += 1; return; }
         seen[key] = { kind: kind, code: x.code, explanation: x.explanation || "", count: 1 };
@@ -276,6 +279,7 @@ footer.page dl.facts { font-size: .82rem; }
   }
   function trustChip(c, pol) {
     var t = c.policies[pol].derived.signer_trust, P = "Policy " + POL_SHORT[pol] + ": ";
+    if (t === "not_checked" && c.policies[pol].derived.manifest !== "absent") { return { cls: "unknown", text: P + "unknown (no usable c2patool result)", short: "Trust unknown" }; }
     if (t === "not_checked") { return { cls: "na", text: P + "not applicable (no manifest)", short: "Trust n/a" }; }
     if (t === "trusted") { return { cls: "test", text: P + "chains to C2PA TEST root (not production)", short: "TEST root" }; }
     if (t === "untrusted" && pol === "no_trust_anchors") { return { cls: "untrusted", text: P + "no trust list, signer untrusted", short: "Untrusted" }; }
@@ -284,14 +288,66 @@ footer.page dl.facts { font-size: .82rem; }
   }
   function trustMeaning(c, pol) {
     var d = c.policies[pol].derived;
-    if (d.signer_trust === "not_checked") { return "No manifest, so there was no signer to check."; }
+    if (d.signer_trust === "not_checked") { return d.manifest === "absent" ? "No manifest, so there was no signer to check." : "c2patool did not produce a usable result, so the signer was not checked."; }
     if (pol === "no_trust_anchors") { return "No trust list was configured, so no signer can be trusted under this policy."; }
     if (d.signer_trust === "trusted") {
       return "The signer chains to the public C2PA test root shipped with c2patool. This is not production trust: the test private key is public." +
-        (d.state === "Invalid" ? " The overall state is still Invalid because the binding check failed." : "");
+        (d.state === "Invalid" ? (d.binding === "mismatch" ? " The overall state is still Invalid because the binding check failed." : " The overall state is still Invalid (see the failure codes).") : "");
     }
     if (d.signer_trust === "untrusted") { return "The signer does not chain to the C2PA test root. Production trust was not evaluated, so this is not evidence of manipulation."; }
     return "Unknown.";
+  }
+  // Fixed reading rules for files checked by check_files.py: the same rules for every file, keyed on overall().
+  function localReading(c) {
+    var o = overall(c), a = derivedA(c), b = c.policies.test_trust_anchors.derived, im = c.image;
+    var can = [], cannot = [], unknown = [], what;
+    if (o.cls === "none") {
+      what = "c2patool found no C2PA manifest in this file.";
+      can.push("c2patool found no C2PA manifest in this file.");
+      cannot.push("Anything about origin. Removing a credential is easy and leaves no trace in the picture, and many tools never add one.");
+      cannot.push("That the image is AI-generated, edited or authentic. A missing credential is not evidence either way.");
+      unknown.push("Who made the file, whether it was ever signed, and whether it was edited.");
+      unknown.push("Whether a credential is stored outside the file: remote (cloud) manifests were not fetched.");
+    } else if (o.cls === "intact") {
+      what = "The file carries a C2PA manifest that c2patool validated for these exact bytes.";
+      can.push("The claim signature validates (claimSignature.validated), and the hard-binding hash matches these bytes (assertion.dataHash.match), so the bound bytes have not changed since signing.");
+      if (b.signer_trust === "trusted") { can.push("Under policy B the signer chains to the public C2PA test root. Its private key is public, so anyone can produce this result. It is not production trust."); }
+      else if (b.signer_trust === "untrusted") { can.push("Neither configured policy trusts the signer. Policy A has no trust list, and policy B trusts only the C2PA test roots shipped with c2patool."); }
+      cannot.push("That the declared claims are true, or that the scene is real. Validation checks that the claims are signed and unchanged since signing, not that they are true.");
+      cannot.push("Who the signer is in any production sense. No production trust list was configured, so \"untrusted\" here is not evidence of manipulation.");
+      unknown.push("What happened to the content before it was signed.");
+    } else if (o.short === "Doesn't match") {
+      what = "The file carries a C2PA manifest, but its hard-binding hash does not match these bytes.";
+      can.push("These are not the bytes the credential was signed for: its hard-binding hash does not match them (assertion.dataHash.mismatch). c2patool reports the credential as " + a.state + ".");
+      if (a.signature === "validated") { can.push("The claim signature still validates: the claim itself is intact, but it does not bind to these bytes."); }
+      cannot.push("Whether the file was edited, re-encoded or given a credential copied from another file. All of these give the same mismatch.");
+      cannot.push("What differs, or where. Validation does not locate the difference.");
+      cannot.push("Anything about whether the content is genuine.");
+      unknown.push("What the signed content was, beyond what the manifest records.");
+    } else if (o.cls === "broken") {
+      var fails = ((c.policies.no_trust_anchors.runner_summary || {}).failure_codes || []).filter(function (k) { return typeof k === "string" && k !== "signingCredential.untrusted"; });
+      what = "The file carries a C2PA manifest that fails c2patool validation.";
+      can.push("c2patool reports the credential as Invalid" + (fails.length ? ", with these failure codes: " + fails.join(", ") + "." : ". The reason is in the raw output."));
+      cannot.push("Which of the declared claims, if any, still hold. An invalid credential supports no conclusion about origin.");
+      cannot.push("Anything about whether the content is genuine.");
+      unknown.push("What the failure means for this file beyond the reported codes.");
+    } else if (a.state === "ERROR") {
+      what = "c2patool did not produce a usable result for this file, so the result is unknown. See the raw output.";
+      cannot.push("Anything about this file's credential: there is no usable result.");
+      unknown.push("Whether the file carries a C2PA manifest.");
+    } else {
+      what = "This viewer cannot classify c2patool's result for this file. See the raw output.";
+      cannot.push("Anything beyond the raw c2patool output: the result does not match a case this viewer recognises.");
+      unknown.push("What this result means.");
+    }
+    if (a.manifest === "present") {
+      unknown.push("Production trust: no production trust list was configured or fetched.");
+      unknown.push("Revocation: OCSP fetching was disabled, so no certificate revocation status was fetched.");
+      unknown.push("Timestamp-authority trust: how c2patool decides it was not examined.");
+    }
+    return { label: im.original_name, sublabel: im.format + " · " + im.bytes.toLocaleString("en") + " bytes", title: im.original_name,
+      what: what, image_alt: "The checked file " + im.original_name + ", shown from the exact bytes that were checked",
+      can: can, cannot: cannot, unknown: unknown };
   }
   function selectCase(id, focus) {
     if (!byId[id]) { id = DATA.cases[0].id; }
@@ -337,7 +393,7 @@ footer.page dl.facts { font-size: .82rem; }
     var src = c.origin === "official"
       ? [c.source.kind + ". " + c.source.license + ". Source: ", el("span", { "class": "mono", text: c.source.url }),
          ". Git blob hash matches GitHub's record: " + (c.source.git_blob_sha_matches_github ? "yes" : "no") + "."]
-      : [c.source.kind + ": " + c.source.generator + "."];
+      : c.origin === "local" ? [c.source.kind] : [c.source.kind + ": " + c.source.generator + "."];
     var caption = el("figcaption", { text: "Shown from the exact bytes that were validated (embedded in this page)." });
     function orientationNote(img) {
       if (im.width && im.height && im.width !== im.height && img.naturalWidth === im.height && img.naturalHeight === im.width) {
@@ -354,22 +410,22 @@ footer.page dl.facts { font-size: .82rem; }
         el("div", { "class": "card" },
           facts([
             ["File", im.original_name],
-            ["Format", im.format + ", " + im.width + " × " + im.height + " px, " + im.bytes.toLocaleString("en") + " bytes"],
+            ["Format", im.format + ", " + (im.width && im.height ? im.width + " × " + im.height + " px, " : "") + im.bytes.toLocaleString("en") + " bytes"],
             ["File SHA-256", im.sha256, "hash"],
             im.pixel_sha256 ? ["Pixel SHA-256", im.pixel_sha256, "hash"] : null,
-            related.length ? ["Same pixels as", related] : (im.format === "PNG" ? ["Same pixels as", "No other case in this viewer"] : null),
+            related.length ? ["Same pixels as", related] : (im.pixel_sha256 ? ["Same pixels as", "No other case in this viewer"] : null),
             ["Source", src],
             ["Transform applied", c.transform],
-            ["Evidence file", "evidence/" + im.file, "hash"]
+            im.file ? ["Evidence file", "evidence/" + im.file, "hash"] : null
           ]),
           precomputed())));
   }
 
   function declaredAssertions(rep) {
-    var m = rep.manifests[rep.active_manifest] || {};
+    var m = (rep.manifests || {})[rep.active_manifest] || {};
     var items = [];
-    (m.assertions || []).forEach(function (a) {
-      if (String(a.label).indexOf("c2pa.actions") === 0) { return; }
+    (Array.isArray(m.assertions) ? m.assertions : []).forEach(function (a) {
+      if (!a || String(a.label).indexOf("c2pa.actions") === 0) { return; }
       var data = a.data, parts = [];
       if (data && typeof data === "object" && !Array.isArray(data)) {
         Object.keys(data).forEach(function (k) {
@@ -389,13 +445,14 @@ footer.page dl.facts { font-size: .82rem; }
     var rep = report(c, "no_trust_anchors");
     var card = el("section", { "class": "card", "aria-labelledby": "h-signer" }, el("h3", { id: "h-signer", text: "Signer and declared claims" }));
     if (!rep) {
-      card.appendChild(el("div", { "class": "chips" }, chip("na", "Unknown: no manifest")));
-      card.appendChild(el("p", { text: "There is no manifest, so there is no signer and there are no declared claims to read." }));
+      var absent = derivedA(c).manifest === "absent";
+      card.appendChild(el("div", { "class": "chips" }, absent ? chip("na", "Unknown: no manifest") : chip("unknown", "Unknown: no readable report")));
+      card.appendChild(el("p", { text: absent ? "There is no manifest, so there is no signer and there are no declared claims to read." : "c2patool did not produce a readable report for this file (see the raw output), so the signer and the declared claims are unknown." }));
       card.appendChild(precomputed());
       return card;
     }
     var cl = c.claims, sig = cl.signature_info || {};
-    var gen = cl.claim_generator || (cl.claim_generator_info || []).map(function (g) { return g.name + (g.version ? " " + g.version : ""); }).join(", ");
+    var gen = cl.claim_generator || (Array.isArray(cl.claim_generator_info) ? cl.claim_generator_info : []).map(function (g) { return g && g.name ? g.name + (g.version ? " " + g.version : "") : "?"; }).join(", ");
     var actions = (cl.actions || []).map(function (a) {
       var t = a.action;
       if (a.digitalSourceType) {
@@ -427,15 +484,20 @@ footer.page dl.facts { font-size: .82rem; }
   function bindingCard(c) {
     var d = derivedA(c), rep = report(c, "no_trust_anchors");
     var card = el("section", { "class": "card", "aria-labelledby": "h-binding" }, el("h3", { id: "h-binding", text: "Asset binding (hash match)" }));
-    if (d.binding === "not_checked") {
+    if (d.binding === "not_checked" && d.manifest !== "absent") {
+      card.appendChild(el("div", { "class": "chips" }, chip("unknown", "Unknown: no usable c2patool result")));
+      card.appendChild(el("p", { text: "c2patool did not produce a usable result for this file (see the raw output), so the binding was not checked." }));
+    } else if (d.binding === "not_checked") {
       card.appendChild(el("div", { "class": "chips" }, chip("na", "Not applicable: no manifest")));
       card.appendChild(el("p", { text: "Nothing to check: there is no manifest, so there is no hash binding the claims to these bytes." }));
     } else if (d.binding === "match") {
       card.appendChild(el("div", { "class": "chips" }, chip("intact", "Hash matches these bytes")));
-      card.appendChild(el("p", { text: "The manifest's hard-binding hash matches this file, so the bound bytes have not changed since signing." }));
+      card.appendChild(el("p", { text: d.state === "Invalid"
+        ? "The hard-binding hash recorded in the manifest matches this file, but the credential fails validation (see the failure codes), so this alone does not show that the bytes are unchanged since signing."
+        : "The manifest's hard-binding hash matches this file, so the bound bytes have not changed since signing." }));
     } else if (d.binding === "mismatch") {
       card.appendChild(el("div", { "class": "chips" }, chip("broken", "Hash does not match these bytes")));
-      card.appendChild(el("p", { text: "The hard-binding hash does not match this file: the bytes changed after signing. A harmless re-encode and a deliberate edit give the same result, and the check does not say what changed." }));
+      card.appendChild(el("p", { text: "The hard-binding hash in the manifest does not match this file: these are not the bytes that were signed. A harmless re-encode, a deliberate edit and a credential copied from another file all give this result, and the check does not say which, or what differs." }));
     } else {
       card.appendChild(el("div", { "class": "chips" }, chip("unknown", "Unknown")));
       card.appendChild(el("p", { text: "The report has no data-hash result, so the binding is unknown." }));
@@ -448,13 +510,22 @@ footer.page dl.facts { font-size: .82rem; }
   function signatureCard(c) {
     var d = derivedA(c), rep = report(c, "no_trust_anchors");
     var card = el("section", { "class": "card", "aria-labelledby": "h-sig" }, el("h3", { id: "h-sig", text: "Signature validation" }));
-    if (d.signature === "not_checked") {
+    if (d.signature === "not_checked" && d.manifest !== "absent") {
+      card.appendChild(el("div", { "class": "chips" }, chip("unknown", "Unknown: no usable c2patool result")));
+      card.appendChild(el("p", { text: "c2patool did not produce a usable result for this file (see the raw output), so the signature was not checked." }));
+    } else if (d.signature === "not_checked") {
       card.appendChild(el("div", { "class": "chips" }, chip("na", "Not applicable: no manifest")));
       card.appendChild(el("p", { text: "Nothing to validate: there is no claim signature in this file." }));
     } else if (d.signature === "validated") {
+      var uri = codeEntries(rep, function (k) { return /^assertion\.hashedURI\./.test(k); });
+      var uriBad = uri.some(function (e) { return e.code === "assertion.hashedURI.mismatch"; });
+      var uriOk = !uriBad && uri.some(function (e) { return e.code === "assertion.hashedURI.match"; });
       card.appendChild(el("div", { "class": "chips" }, chip("intact", "Claim signature validates")));
-      card.appendChild(el("p", { text: "The claim signature validates, and the assertions it lists are unchanged." +
-        (d.binding === "mismatch" ? " The claim itself is intact, but it no longer binds to these bytes (see Asset binding)." : "") }));
+      card.appendChild(el("p", { text: (uriBad
+        ? "The claim signature validates, but at least one assertion it lists no longer matches its recorded hash (assertion.hashedURI.mismatch), so the credential fails validation."
+        : d.state === "Invalid" && d.binding !== "mismatch" ? "The claim signature validates, but c2patool still reports the credential as Invalid. The reason is in the failure codes in the raw output."
+        : uriOk ? "The claim signature validates, and the assertions it lists are unchanged." : "The claim signature validates.") +
+        (d.binding === "mismatch" ? " The claim itself is intact, but it does not bind to these bytes (see Asset binding)." : "") }));
     } else {
       card.appendChild(el("div", { "class": "chips" }, chip(d.signature === "mismatch" ? "broken" : "unknown", d.signature === "mismatch" ? "Claim signature does not validate" : "Unknown")));
     }
@@ -472,7 +543,7 @@ footer.page dl.facts { font-size: .82rem; }
     var rows = POL.map(function (pol) {
       var p = c.policies[pol], d = p.derived, rep = report(c, pol);
       var code = codeEntries(rep, function (k) { return /^signingCredential/.test(k); }).map(function (e) { return e.code; }).join(", ");
-      var state = d.state === "NO_MANIFEST" ? "no manifest (\"No claim found\")" : "\"" + d.state + "\"";
+      var state = d.state === "NO_MANIFEST" ? "no manifest (\"No claim found\")" : d.state === "ERROR" ? "no usable result (exit code " + p.exit_code + ")" : "\"" + d.state + "\"";
       var codeNode = null;
       if (code) {
         codeNode = el("div", { "class": "mono note code-break" });
@@ -499,7 +570,7 @@ footer.page dl.facts { font-size: .82rem; }
     }
     return el("section", { "aria-labelledby": "sec-conclude" },
       el("h3", { "class": "section-title", id: "sec-conclude", text: "3. What this can and cannot conclude" }),
-      el("p", { "class": "interp-label", text: "The builder's reading of the recorded results above. It is not tool output." }),
+      el("p", { "class": "interp-label", text: LOCAL ? "Fixed reading rules applied to the results above, the same rules for every file. It is not tool output." : "The builder's reading of the recorded results above. It is not tool output." }),
       el("div", { "class": "conclude" }, block("can", "Can conclude", ip.can), block("cannot", "Cannot conclude", ip.cannot), block("unk", "Unknown", ip.unknown)));
   }
 
@@ -511,30 +582,32 @@ footer.page dl.facts { font-size: .82rem; }
         el("summary", { text: DATA.policies[pol].name + ": command and raw c2patool output" }),
         el("div", { "class": "evidence-body" },
           el("p", { "class": "note", text: DATA.policies[pol].summary }),
-          el("p", { "class": "note", text: "Local folder paths are shortened to placeholders such as <work>, <runner> and <c2patool-0.27.23>. Nothing else in the output was changed." }),
+          el("p", { "class": "note", text: LOCAL ? "Local folder paths are shortened to placeholders such as <input-folder>, <c2patool> and <home>. Nothing else in the output was changed." : "Local folder paths are shortened to placeholders such as <work>, <runner> and <c2patool-0.27.23>. Nothing else in the output was changed." }),
           facts([
             ["Command", p.command.join(" "), "hash"],
             ["Working directory", p.working_directory, "hash"],
             ["Exit code", String(p.exit_code)],
             ["c2patool state", p.derived.state],
-            ["Report file", "evidence/" + p.report_file, "hash"],
+            p.report_file ? ["Report file", "evidence/" + p.report_file, "hash"] : null,
             ["Report SHA-256", p.report_sha256 + (p.report_sha256 === other.report_sha256 ? " (identical to the other policy's output)" : ""), "hash"]
           ]),
-          el("pre", { "class": "raw", tabindex: "0", "aria-label": "Raw c2patool output for " + DATA.policies[pol].name, text: p.report_text })));
+          el("pre", { "class": "raw", tabindex: "0", "aria-label": "Raw c2patool output for " + DATA.policies[pol].name, text: p.report_text }),
+          p.stderr_text ? el("pre", { "class": "raw", tabindex: "0", "aria-label": "c2patool error output for " + DATA.policies[pol].name, text: "--- stderr ---\n" + p.stderr_text }) : null));
     });
     var tool = el("details", { "class": "evidence" },
-      el("summary", { text: "Input file, tool, settings and runner" }),
+      el("summary", { text: LOCAL ? "Input file, tool, settings and checker" : "Input file, tool, settings and runner" }),
       el("div", { "class": "evidence-body" },
         facts([
-          ["Input file", "evidence/" + im.file + " (original name " + im.original_name + ")", "hash"],
+          LOCAL ? ["Input file", im.original_name + " (embedded in this page; its folder is not recorded)"] : ["Input file", "evidence/" + im.file + " (original name " + im.original_name + ")", "hash"],
           ["Input SHA-256", im.sha256, "hash"],
-          ["Tool", run.tool.reported_version + " (release " + run.tool.release + ", " + run.tool.license + ")"],
+          ["Tool", run.tool.reported_version + (run.tool.release ? " (release " + run.tool.release + ", " + run.tool.license + ")" : "")],
           ["Tool binary SHA-256", run.tool.binary_sha256, "hash"],
           ["Sandbox profile", run.offline_controls.sandbox_profile, "hash"],
           ["Network settings", "remote manifest fetch off; OCSP fetch off; allowed network hosts: none"],
           ["Settings file", run.settings.file + " · SHA-256 " + run.settings.sha256, "hash"],
           ["Policy B anchor files", Object.keys(run.trust_policies.test_trust_anchors.files).map(function (k) { return k + " · SHA-256 " + run.trust_policies.test_trust_anchors.files[k]; }).join("; "), "hash"],
-          ["Runner", run.runner.repository + " · branch " + run.runner.branch + " · commit " + run.runner.commit + " · " + run.runner.file + " SHA-256 " + run.runner.file_sha256, "hash"],
+          run.runner ? ["Runner", run.runner.repository + " · branch " + run.runner.branch + " · commit " + run.runner.commit + " · " + run.runner.file + " SHA-256 " + run.runner.file_sha256, "hash"] : null,
+          run.checker ? ["Checker", run.checker.file + " · SHA-256 " + run.checker.file_sha256, "hash"] : null,
           ["Recorded", fmtTime(run.finished) + " on " + run.os + ", Python " + run.python]
         ]),
         el("pre", { "class": "raw", tabindex: "0", "aria-label": "Settings file contents", text: run.settings.text })));
@@ -565,17 +638,30 @@ footer.page dl.facts { font-size: .82rem; }
   function renderAbout() {
     var run = DATA.run, f = document.getElementById("about");
     f.appendChild(el("h2", { text: "About these results" }));
-    f.appendChild(el("p", { text: "All results were produced before this page was built. The product-branch runner ran unchanged; the build script embedded its recorded output and checked every evidence file against its SHA-256. Opening this page runs no validation." }));
-    f.appendChild(facts([
-      ["Recorded", fmtTime(run.started) + " to " + fmtTime(run.finished) + " on " + run.os],
-      ["Runner", run.runner.repository + ", branch " + run.runner.branch + ", commit " + run.runner.commit + " (tree " + run.runner.tree + ")"],
-      ["How the runner was used", run.runner.how_used],
-      ["Fresh run vs recorded results", run.consistency.fresh_results_identical_to_recorded ? "identical to the product branch's recorded results (SHA-256 " + run.consistency.recorded_results_sha256 + ")" : "DIFFERENT from the recorded results"],
-      ["Tool", run.tool.reported_version + ", binary SHA-256 " + run.tool.binary_sha256],
-      ["Test signing certificate", run.tool.test_signing_certificate.join("; ")],
-      ["Official test files", "C2PA public test files, CC-BY-SA-4.0: https://github.com/c2pa-org/public-testfiles (shown as text; this page loads nothing)"],
-      ["Not evaluated", "Production trust lists, certificate revocation, timestamp-authority trust, watermarks, SynthID and AI-image detectors."]
-    ]));
+    if (LOCAL) {
+      document.getElementById("cases-heading").textContent = "Files";
+      document.querySelector("nav.cases").setAttribute("aria-label", "Files");
+      f.appendChild(el("p", { text: "These results were produced on this computer by " + run.checker.file + " before this page was built. It ran c2patool twice on each file, offline, in a network-denied sandbox, and embedded the output and the checked files in this page. Opening this page runs no validation." }));
+      f.appendChild(facts([
+        ["Checked", fmtTime(run.started) + " to " + fmtTime(run.finished) + " on " + run.os + ", Python " + run.python],
+        ["Files checked", String(DATA.cases.length)],
+        ["Tool", run.tool.reported_version + ", binary SHA-256 " + run.tool.binary_sha256 + ". The checker accepts only the files of " + run.tool.tested_release + ", checked by SHA-256."],
+        ["Checker", run.checker.file + ", SHA-256 " + run.checker.file_sha256],
+        ["Not evaluated", "Production trust lists, certificate revocation, timestamp-authority trust, remote (cloud) manifests, watermarks, SynthID and AI-image detectors."]
+      ]));
+    } else {
+      f.appendChild(el("p", { text: "All results were produced before this page was built. The product-branch runner ran unchanged; the build script embedded its recorded output and checked every evidence file against its SHA-256. Opening this page runs no validation." }));
+      f.appendChild(facts([
+        ["Recorded", fmtTime(run.started) + " to " + fmtTime(run.finished) + " on " + run.os],
+        ["Runner", run.runner.repository + ", branch " + run.runner.branch + ", commit " + run.runner.commit + " (tree " + run.runner.tree + ")"],
+        ["How the runner was used", run.runner.how_used],
+        ["Fresh run vs recorded results", run.consistency.fresh_results_identical_to_recorded ? "identical to the product branch's recorded results (SHA-256 " + run.consistency.recorded_results_sha256 + ")" : "DIFFERENT from the recorded results"],
+        ["Tool", run.tool.reported_version + ", binary SHA-256 " + run.tool.binary_sha256],
+        ["Test signing certificate", run.tool.test_signing_certificate.join("; ")],
+        ["Official test files", "C2PA public test files, CC-BY-SA-4.0: https://github.com/c2pa-org/public-testfiles (shown as text; this page loads nothing)"],
+        ["Not evaluated", "Production trust lists, certificate revocation, timestamp-authority trust, watermarks, SynthID and AI-image detectors."]
+      ]));
+    }
     document.getElementById("banner-text").textContent = "Every result on this page was recorded on " + fmtTime(run.finished) +
       " by running " + run.tool.reported_version + " on this Mac, offline, in a network-denied sandbox. Your browser runs no validator; it only displays those recorded results. The page has no upload feature and loads nothing from the network.";
   }
