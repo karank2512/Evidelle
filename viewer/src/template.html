@@ -1,0 +1,594 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<title>C2PA Evidence Viewer</title>
+<style>
+:root {
+  color-scheme: light;
+  --bg: #f6f6f3; --surface: #ffffff; --surface-2: #f0f0ec; --ink: #1c1c1a; --muted: #5a5a55; --line: #d8d8d2;
+  --accent: #2b5b84; --focus: #2b5b84;
+  --banner-bg: #fff5dc; --banner-line: #e2cc92; --banner-ink: #45370f;
+  --intact-bg: #e1ecf6; --intact-ink: #1d4567; --intact-line: #a7c3dc;
+  --broken-bg: #fbe8d1; --broken-ink: #6b410f; --broken-line: #e1bb83;
+  --none-bg: #ecece8; --none-ink: #43433e; --none-line: #cdcdc6;
+  --test-bg: #ece6f6; --test-ink: #46367a; --test-line: #c3b5e3;
+  --declared-bg: #f3efe4; --declared-ink: #4d4532; --declared-line: #d8cfb5;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --bg: #161615; --surface: #1f1f1d; --surface-2: #272725; --ink: #ecebe6; --muted: #a9a8a1; --line: #3a3a36;
+    --accent: #8db6dc; --focus: #8db6dc;
+    --banner-bg: #2d2714; --banner-line: #5d4e22; --banner-ink: #f0dfae;
+    --intact-bg: #1c3044; --intact-ink: #bcd6ee; --intact-line: #35577a;
+    --broken-bg: #41301a; --broken-ink: #f2cf9d; --broken-line: #6e5128;
+    --none-bg: #2b2b28; --none-ink: #d0cfc8; --none-line: #4a4a45;
+    --test-bg: #2d2640; --test-ink: #d4c7f2; --test-line: #4f4373;
+    --declared-bg: #2c291f; --declared-ink: #e3d9bd; --declared-line: #514a35;
+  }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink);
+  font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+.wrap { max-width: 1240px; margin: 0 auto; padding: 0 16px; }
+a { color: var(--accent); }
+code, .mono, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+code { font-size: .86em; background: var(--surface-2); border: 1px solid var(--line); border-radius: 5px; padding: 0 4px; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+header.page { padding: 26px 0 6px; }
+.eyebrow { margin: 0 0 4px; font-size: .78rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+h1 { margin: 0 0 8px; font-size: 1.85rem; line-height: 1.2; }
+.lead { margin: 0 0 14px; max-width: 72ch; }
+.banner { border: 1px solid var(--banner-line); background: var(--banner-bg); color: var(--banner-ink);
+  border-radius: 12px; padding: 12px 14px; margin: 0 0 12px; max-width: 100ch; }
+.banner strong { display: block; margin-bottom: 2px; }
+.rules { margin: 0 0 18px; padding-left: 1.1rem; max-width: 100ch; color: var(--ink); }
+.rules li { margin: 2px 0; }
+
+main.layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 24px; align-items: start; padding-bottom: 28px; }
+nav.cases { position: sticky; top: 12px; }
+nav.cases h2 { font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 8px; }
+.case-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.case-btn { width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; }
+.case-btn:hover { border-color: var(--accent); }
+.case-btn[aria-current="true"] { border-color: var(--accent); box-shadow: inset 4px 0 0 var(--accent); }
+.case-btn .t { font-weight: 650; line-height: 1.3; }
+.case-btn .s { font-size: .8rem; color: var(--muted); }
+.case-btn .chips { margin-top: 2px; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; font-size: .78rem; font-weight: 650; line-height: 1.3;
+  padding: 3px 9px; border-radius: 999px; border: 1px solid; }
+.chip::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex: none; }
+.chip.intact { background: var(--intact-bg); color: var(--intact-ink); border-color: var(--intact-line); }
+.chip.broken { background: var(--broken-bg); color: var(--broken-ink); border-color: var(--broken-line); }
+.chip.none, .chip.untrusted { background: var(--none-bg); color: var(--none-ink); border-color: var(--none-line); }
+.chip.na, .chip.unknown { background: transparent; color: var(--none-ink); border-color: var(--none-line); border-style: dashed; }
+.chip.na::before, .chip.unknown::before { background: transparent; border: 1.5px solid currentColor; }
+.chip.test { background: var(--test-bg); color: var(--test-ink); border-color: var(--test-line); }
+.chip.declared { background: var(--declared-bg); color: var(--declared-ink); border-color: var(--declared-line); }
+
+article.case { min-width: 0; }
+.case-head h2 { margin: 0 0 6px; font-size: 1.45rem; line-height: 1.25; }
+.case-head h2:focus { outline: none; }
+.case-head p { margin: 0 0 10px; max-width: 80ch; }
+.section-title { font-size: 1.05rem; margin: 22px 0 10px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; min-width: 0; }
+.card h3 { margin: 0 0 8px; font-size: 1rem; }
+.card p { margin: 8px 0; }
+.precomputed { margin: 10px 0 0; font-size: .75rem; color: var(--muted); }
+
+.media { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.media figure { margin: 0; }
+.media img { display: block; width: 100%; height: auto; max-height: 440px; object-fit: contain;
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; image-rendering: auto; }
+.media figcaption { font-size: .78rem; color: var(--muted); margin-top: 6px; }
+dl.facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 12px; margin: 0; font-size: .88rem; }
+dl.facts dt { color: var(--muted); }
+dl.facts dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.hash { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .8rem; overflow-wrap: anywhere; }
+.linkish { font: inherit; color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; }
+
+.checks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.codes { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 4px; }
+.codes li { font-size: .8rem; overflow-wrap: anywhere; }
+.codes .k { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-weight: 600; }
+.codes .x { color: var(--muted); }
+.codes .kind { font-size: .7rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin-right: 4px; }
+table.policy { width: 100%; border-collapse: collapse; font-size: .85rem; margin-top: 8px; table-layout: fixed; }
+table.policy th:nth-child(1) { width: 22%; }
+table.policy th:nth-child(2) { width: 38%; }
+table.policy td .mono { overflow-wrap: anywhere; }
+table.policy td .code-break { font-size: .76rem; }
+table.policy th, table.policy td { text-align: left; vertical-align: top; padding: 7px 6px; border-top: 1px solid var(--line); }
+table.policy th { font-size: .75rem; color: var(--muted); font-weight: 650; border-top: 0; }
+.assertions { margin: 6px 0 0; padding-left: 1.1rem; font-size: .85rem; }
+.assertions li { margin: 3px 0; overflow-wrap: anywhere; }
+.note { font-size: .82rem; color: var(--muted); }
+
+.conclude { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.conclude .card { border-left-width: 5px; }
+.conclude .can { border-left-color: var(--intact-line); }
+.conclude .cannot { border-left-color: var(--broken-line); }
+.conclude .unk { border-left-color: var(--none-line); border-left-style: dashed; }
+.conclude ul { margin: 6px 0 0; padding-left: 1.1rem; }
+.conclude li { margin: 5px 0; }
+.interp-label { font-size: .8rem; color: var(--muted); margin: -4px 0 10px; }
+
+.evidence-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin: 22px 0 10px; }
+.evidence-head h3 { margin: 0; font-size: 1.05rem; }
+.btn { font: inherit; font-size: .85rem; color: var(--ink); background: var(--surface); border: 1px solid var(--line);
+  border-radius: 8px; padding: 5px 10px; cursor: pointer; }
+.btn:hover { border-color: var(--accent); }
+details.evidence { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; margin: 0 0 10px; }
+details.evidence > summary { cursor: pointer; padding: 11px 14px; font-weight: 650; list-style-position: inside; }
+details.evidence[open] > summary { border-bottom: 1px solid var(--line); }
+.evidence-body { padding: 10px 14px 14px; display: grid; gap: 10px; min-width: 0; }
+.evidence-body p { margin: 0; }
+pre.raw { margin: 0; max-height: 420px; overflow: auto; background: var(--surface-2); border: 1px solid var(--line);
+  border-radius: 8px; padding: 10px 12px; font-size: 12px; line-height: 1.45; white-space: pre; }
+
+footer.page { border-top: 1px solid var(--line); padding: 18px 0 40px; font-size: .85rem; color: var(--muted); }
+footer.page h2 { font-size: .95rem; color: var(--ink); margin: 0 0 8px; }
+footer.page dl.facts { font-size: .82rem; }
+
+@media (max-width: 1000px) {
+  .conclude { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 860px) {
+  main.layout { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+  nav.cases { position: static; }
+  .case-list { display: flex; overflow-x: auto; gap: 8px; padding-bottom: 6px; scroll-snap-type: x mandatory; }
+  .case-list li { flex: 0 0 236px; scroll-snap-align: start; }
+  .case-btn { height: 100%; }
+  .media, .checks { grid-template-columns: minmax(0, 1fr); }
+  h1 { font-size: 1.5rem; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="page">
+    <p class="eyebrow">Private local candidate · C2PA results only</p>
+    <h1>C2PA evidence viewer</h1>
+    <p class="lead">This page shows real c2patool results recorded on this Mac. For each file it answers one question: does the file carry a C2PA Content Credential that is intact for these exact bytes, who signed it, and does the signer chain to a trust list we configured? It also says what stays unknown.</p>
+    <div class="banner" role="note" id="static-banner">
+      <strong>Precomputed, local-only results.</strong>
+      <span id="banner-text">Every result on this page was recorded in advance by running c2patool on this Mac, offline, in a network-denied sandbox. Your browser runs no validator; it only displays the recorded results. The page has no upload feature and loads nothing from the network.</span>
+    </div>
+    <ul class="rules">
+      <li>Nothing here says whether an image is real or fake, and nothing here is an AI-probability score.</li>
+      <li>"Trusted" from c2patool means only that the signer chains to the <strong>public C2PA test root</strong> shipped with c2patool. Its private key is public, so this is never production trust.</li>
+      <li>Declared claims, such as a "digitalCapture" source type, are the signer's statements, not proven origin.</li>
+      <li>A missing credential is not evidence either way.</li>
+      <li>Production trust and certificate revocation were not evaluated for any case.</li>
+    </ul>
+  </header>
+  <noscript><p class="banner">This viewer needs JavaScript to show the cases. The recorded evidence is in the <code>evidence/</code> folder next to this file.</p></noscript>
+  <main class="layout">
+    <nav class="cases" aria-label="Cases">
+      <h2 id="cases-heading">Cases</h2>
+      <ul class="case-list" id="case-list" aria-labelledby="cases-heading"></ul>
+    </nav>
+    <article class="case" id="case"></article>
+  </main>
+  <footer class="page" id="about"></footer>
+</div>
+<script>
+(function () {
+  "use strict";
+  var DATA = /*__EVIDENCE_DATA__*/null;
+  if (!DATA) { return; }
+
+  var POL = ["no_trust_anchors", "test_trust_anchors"];
+  var POL_SHORT = { no_trust_anchors: "A", test_trust_anchors: "B" };
+  var SOURCE_TYPE_WORDS = {
+    algorithmicMedia: "created by an algorithm",
+    trainedAlgorithmicMedia: "created by a trained model",
+    digitalCapture: "captured by a camera"
+  };
+  var byId = {};
+  DATA.cases.forEach(function (c) { byId[c.id] = c; });
+  var current = null;
+
+  function el(tag, attrs) {
+    var node = document.createElement(tag);
+    var a = attrs || {};
+    Object.keys(a).forEach(function (k) {
+      var v = a[k];
+      if (v === null || v === undefined || v === false) { return; }
+      if (k === "class") { node.className = v; }
+      else if (k === "text") { node.textContent = v; }
+      else if (k.slice(0, 2) === "on") { node.addEventListener(k.slice(2), v); }
+      else { node.setAttribute(k, v === true ? "" : String(v)); }
+    });
+    for (var i = 2; i < arguments.length; i++) { append(node, arguments[i]); }
+    return node;
+  }
+  function append(node, child) {
+    if (child === null || child === undefined || child === false) { return; }
+    if (Array.isArray(child)) { child.forEach(function (c) { append(node, c); }); return; }
+    node.appendChild(child instanceof Node ? child : document.createTextNode(String(child)));
+  }
+  function chip(cls, text) { return el("span", { "class": "chip " + cls, text: text }); }
+  function facts(rows) {
+    var dl = el("dl", { "class": "facts" });
+    rows.forEach(function (r) {
+      if (!r) { return; }
+      dl.appendChild(el("dt", { text: r[0] }));
+      dl.appendChild(el("dd", r[2] ? { "class": r[2] } : null, r[1]));
+    });
+    return dl;
+  }
+  function precomputed() {
+    return el("p", { "class": "precomputed", text: "Precomputed · validation ran locally with " + DATA.run.tool.reported_version + ", not in this browser" });
+  }
+  function fmtTime(iso) {
+    var m = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2}:\d{2})(.*)$/.exec(iso || "");
+    return m ? m[1] + " " + m[2] + (m[3] ? " (UTC" + m[3] + ")" : "") : String(iso);
+  }
+  function report(c, pol) {
+    var p = c.policies[pol];
+    if (p.exit_code !== 0) { return null; }
+    try { return JSON.parse(p.report_text); } catch (e) { return null; }
+  }
+  function codeEntries(rep, filter) {
+    var out = [];
+    if (!rep) { return out; }
+    var am = (rep.validation_results && rep.validation_results.activeManifest) || {};
+    ["success", "informational", "failure"].forEach(function (kind) {
+      var seen = {};
+      (am[kind] || []).forEach(function (x) {
+        if (!filter(x.code)) { return; }
+        var key = x.code;
+        if (seen[key]) { seen[key].count += 1; return; }
+        seen[key] = { kind: kind, code: x.code, explanation: x.explanation || "", count: 1 };
+        out.push(seen[key]);
+      });
+    });
+    return out;
+  }
+  function codeList(entries) {
+    if (!entries.length) { return el("p", { "class": "note", text: "No codes of this kind were reported." }); }
+    return el("ul", { "class": "codes" }, entries.map(function (e) {
+      var x = e.count > 1 ? e.explanation.split(":")[0] + " (each entry is in the raw output)" : e.explanation;
+      return el("li", null, el("span", { "class": "kind", text: e.kind }), el("span", { "class": "k", text: e.code }),
+        e.count > 1 ? " ×" + e.count : "", x ? el("span", { "class": "x", text: " — " + x }) : null);
+    }));
+  }
+  function derivedA(c) { return c.policies.no_trust_anchors.derived; }
+  function overall(c) {
+    var d = derivedA(c);
+    if (d.manifest === "absent") { return { cls: "none", text: "No credential found", short: "No credential" }; }
+    if (d.manifest !== "present") { return { cls: "unknown", text: "Unknown", short: "Unknown" }; }
+    if (d.binding === "mismatch") { return { cls: "broken", text: "Credential does not match these bytes", short: "Doesn't match" }; }
+    if (d.state === "Invalid") { return { cls: "broken", text: "Credential fails c2patool validation (see the failure codes)", short: "Fails validation" }; }
+    if ((d.state === "Valid" || d.state === "Trusted") && d.binding === "match" && d.signature === "validated") { return { cls: "intact", text: "Credential intact for these bytes", short: "Intact" }; }
+    return { cls: "unknown", text: "Unknown", short: "Unknown" };
+  }
+  function trustChip(c, pol) {
+    var t = c.policies[pol].derived.signer_trust, P = "Policy " + POL_SHORT[pol] + ": ";
+    if (t === "not_checked") { return { cls: "na", text: P + "not applicable (no manifest)", short: "Trust n/a" }; }
+    if (t === "trusted") { return { cls: "test", text: P + "chains to C2PA TEST root (not production)", short: "TEST root" }; }
+    if (t === "untrusted" && pol === "no_trust_anchors") { return { cls: "untrusted", text: P + "no trust list, signer untrusted", short: "Untrusted" }; }
+    if (t === "untrusted") { return { cls: "untrusted", text: P + "not on the C2PA test anchors", short: "Untrusted" }; }
+    return { cls: "unknown", text: P + "unknown", short: "Trust unknown" };
+  }
+  function trustMeaning(c, pol) {
+    var d = c.policies[pol].derived;
+    if (d.signer_trust === "not_checked") { return "No manifest, so there was no signer to check."; }
+    if (pol === "no_trust_anchors") { return "No trust list was configured, so no signer can be trusted under this policy."; }
+    if (d.signer_trust === "trusted") {
+      return "The signer chains to the public C2PA test root shipped with c2patool. This is not production trust: the test private key is public." +
+        (d.state === "Invalid" ? " The overall state is still Invalid because the binding check failed." : "");
+    }
+    if (d.signer_trust === "untrusted") { return "The signer does not chain to the C2PA test root. Production trust was not evaluated, so this is not evidence of manipulation."; }
+    return "Unknown.";
+  }
+  function selectCase(id, focus) {
+    if (!byId[id]) { id = DATA.cases[0].id; }
+    current = id;
+    Array.prototype.forEach.call(document.querySelectorAll(".case-btn"), function (b) {
+      b.setAttribute("aria-current", b.getAttribute("data-case") === id ? "true" : "false");
+    });
+    renderCase(byId[id]);
+    if (location.hash !== "#case=" + id) {
+      try { history.replaceState(null, "", "#case=" + id); } catch (e) { location.hash = "case=" + id; }
+    }
+    document.title = byId[id].interpretation.label + " · C2PA Evidence Viewer";
+    if (focus) { var h = document.getElementById("case-title"); if (h) { h.focus(); } }
+  }
+
+  function renderNav() {
+    var list = document.getElementById("case-list");
+    DATA.cases.forEach(function (c, i) {
+      var o = overall(c), tb = trustChip(c, "test_trust_anchors");
+      var btn = el("button", { "class": "case-btn", type: "button", "data-case": c.id, "aria-current": "false",
+        onclick: function () { selectCase(c.id, true); },
+        onkeydown: function (ev) {
+          var k = ev.key, step = (k === "ArrowDown" || k === "ArrowRight") ? 1 : (k === "ArrowUp" || k === "ArrowLeft") ? -1 : 0;
+          if (!step) { return; }
+          ev.preventDefault();
+          var next = DATA.cases[(i + step + DATA.cases.length) % DATA.cases.length];
+          selectCase(next.id, false);
+          var nb = document.querySelector('.case-btn[data-case="' + next.id + '"]'); if (nb) { nb.focus(); }
+        } },
+        el("span", { "class": "t", text: c.interpretation.label }),
+        el("span", { "class": "s", text: c.interpretation.sublabel }),
+        el("span", { "class": "chips" }, chip(o.cls, o.short), chip(tb.cls, "B: " + tb.short)));
+      list.appendChild(el("li", null, btn));
+    });
+  }
+
+  function imageSection(c) {
+    var im = c.image, ip = c.interpretation;
+    var related = (im.same_pixels_as || []).map(function (oid, i) {
+      return [i ? ", " : "", el("button", { "class": "linkish", type: "button", text: byId[oid] ? byId[oid].interpretation.label : oid,
+        onclick: function () { selectCase(oid, true); } })];
+    });
+    var src = c.origin === "official"
+      ? [c.source.kind + ". " + c.source.license + ". Source: ", el("span", { "class": "mono", text: c.source.url }),
+         ". Git blob hash matches GitHub's record: " + (c.source.git_blob_sha_matches_github ? "yes" : "no") + "."]
+      : [c.source.kind + ": " + c.source.generator + "."];
+    var caption = el("figcaption", { text: "Shown from the exact bytes that were validated (embedded in this page)." });
+    function orientationNote(img) {
+      if (im.width && im.height && im.width !== im.height && img.naturalWidth === im.height && img.naturalHeight === im.width) {
+        caption.appendChild(document.createTextNode(" Your browser displays it rotated (" + img.naturalWidth + " × " + img.naturalHeight +
+          "), following the file's orientation metadata. The stored pixel grid is " + im.width + " × " + im.height + "."));
+      }
+    }
+    var picture = el("img", { onload: function () { orientationNote(this); }, alt: ip.image_alt, decoding: "async" });
+    picture.src = im.data_uri;
+    return el("section", { "aria-labelledby": "sec-image" },
+      el("h3", { "class": "section-title", id: "sec-image", text: "1. The image" }),
+      el("div", { "class": "media" },
+        el("figure", null, picture, caption),
+        el("div", { "class": "card" },
+          facts([
+            ["File", im.original_name],
+            ["Format", im.format + ", " + im.width + " × " + im.height + " px, " + im.bytes.toLocaleString("en") + " bytes"],
+            ["File SHA-256", im.sha256, "hash"],
+            im.pixel_sha256 ? ["Pixel SHA-256", im.pixel_sha256, "hash"] : null,
+            related.length ? ["Same pixels as", related] : (im.format === "PNG" ? ["Same pixels as", "No other case in this viewer"] : null),
+            ["Source", src],
+            ["Transform applied", c.transform],
+            ["Evidence file", "evidence/" + im.file, "hash"]
+          ]),
+          precomputed())));
+  }
+
+  function declaredAssertions(rep) {
+    var m = rep.manifests[rep.active_manifest] || {};
+    var items = [];
+    (m.assertions || []).forEach(function (a) {
+      if (String(a.label).indexOf("c2pa.actions") === 0) { return; }
+      var data = a.data, parts = [];
+      if (data && typeof data === "object" && !Array.isArray(data)) {
+        Object.keys(data).forEach(function (k) {
+          if (k === "@context") { return; }
+          var v = data[k];
+          if (v === null || typeof v !== "object") { parts.push(k + ": " + v); }
+          else if (Array.isArray(v)) { parts.push(k + ": [" + v.length + " value" + (v.length === 1 ? "" : "s") + "]"); }
+          else { parts.push(k + ": {…}"); }
+        });
+      }
+      items.push(el("li", null, el("span", { "class": "mono", text: a.label }), parts.length ? " — " + parts.join("; ") : ""));
+    });
+    return items;
+  }
+
+  function signerCard(c) {
+    var rep = report(c, "no_trust_anchors");
+    var card = el("section", { "class": "card", "aria-labelledby": "h-signer" }, el("h3", { id: "h-signer", text: "Signer and declared claims" }));
+    if (!rep) {
+      card.appendChild(el("div", { "class": "chips" }, chip("na", "Unknown: no manifest")));
+      card.appendChild(el("p", { text: "There is no manifest, so there is no signer and there are no declared claims to read." }));
+      card.appendChild(precomputed());
+      return card;
+    }
+    var cl = c.claims, sig = cl.signature_info || {};
+    var gen = cl.claim_generator || (cl.claim_generator_info || []).map(function (g) { return g.name + (g.version ? " " + g.version : ""); }).join(", ");
+    var actions = (cl.actions || []).map(function (a) {
+      var t = a.action;
+      if (a.digitalSourceType) {
+        var st = String(a.digitalSourceType).split("/").pop();
+        t += " · digitalSourceType " + st + (SOURCE_TYPE_WORDS[st] ? " (declared: " + SOURCE_TYPE_WORDS[st] + ")" : "");
+      }
+      if (a.parameters && a.parameters.name) { t += " · " + a.parameters.name; }
+      return el("li", { text: t });
+    });
+    var ingredients = (cl.ingredients || []).map(function (g) { return el("li", { text: g.title + " (" + g.relationship + ", " + g.format + ")" }); });
+    var others = declaredAssertions(rep);
+    card.appendChild(el("div", { "class": "chips" }, chip("declared", "Declared by the signer, not verified as true")));
+    card.appendChild(facts([
+      ["Certificate issuer", sig.issuer || "not reported"],
+      ["Certificate common name", sig.common_name || "not reported"],
+      ["Signature algorithm", sig.alg || "not reported"],
+      ["Timestamp", sig.time ? sig.time + " (from the signature's timestamp)" : "None: the signature carries no timestamp"],
+      ["Declared title", cl.title || "none"],
+      ["Claim generator", gen || "not reported"]
+    ]));
+    if (actions.length) { card.appendChild(el("p", { "class": "note", text: "Declared actions:" })); card.appendChild(el("ul", { "class": "assertions" }, actions)); }
+    if (ingredients.length) { card.appendChild(el("p", { "class": "note", text: "Declared ingredients:" })); card.appendChild(el("ul", { "class": "assertions" }, ingredients)); }
+    if (others.length) { card.appendChild(el("p", { "class": "note", text: "Other declared assertions (as c2patool reported them):" })); card.appendChild(el("ul", { "class": "assertions" }, others)); }
+    card.appendChild(el("p", { "class": "note", text: "Everything in this box is the signer's statement. Validation checks that it is signed and unchanged since signing, not that it is true." }));
+    card.appendChild(precomputed());
+    return card;
+  }
+
+  function bindingCard(c) {
+    var d = derivedA(c), rep = report(c, "no_trust_anchors");
+    var card = el("section", { "class": "card", "aria-labelledby": "h-binding" }, el("h3", { id: "h-binding", text: "Asset binding (hash match)" }));
+    if (d.binding === "not_checked") {
+      card.appendChild(el("div", { "class": "chips" }, chip("na", "Not applicable: no manifest")));
+      card.appendChild(el("p", { text: "Nothing to check: there is no manifest, so there is no hash binding the claims to these bytes." }));
+    } else if (d.binding === "match") {
+      card.appendChild(el("div", { "class": "chips" }, chip("intact", "Hash matches these bytes")));
+      card.appendChild(el("p", { text: "The manifest's hard-binding hash matches this file, so the bound bytes have not changed since signing." }));
+    } else if (d.binding === "mismatch") {
+      card.appendChild(el("div", { "class": "chips" }, chip("broken", "Hash does not match these bytes")));
+      card.appendChild(el("p", { text: "The hard-binding hash does not match this file: the bytes changed after signing. A harmless re-encode and a deliberate edit give the same result, and the check does not say what changed." }));
+    } else {
+      card.appendChild(el("div", { "class": "chips" }, chip("unknown", "Unknown")));
+      card.appendChild(el("p", { text: "The report has no data-hash result, so the binding is unknown." }));
+    }
+    card.appendChild(codeList(codeEntries(rep, function (k) { return /dataHash/.test(k); })));
+    card.appendChild(precomputed());
+    return card;
+  }
+
+  function signatureCard(c) {
+    var d = derivedA(c), rep = report(c, "no_trust_anchors");
+    var card = el("section", { "class": "card", "aria-labelledby": "h-sig" }, el("h3", { id: "h-sig", text: "Signature validation" }));
+    if (d.signature === "not_checked") {
+      card.appendChild(el("div", { "class": "chips" }, chip("na", "Not applicable: no manifest")));
+      card.appendChild(el("p", { text: "Nothing to validate: there is no claim signature in this file." }));
+    } else if (d.signature === "validated") {
+      card.appendChild(el("div", { "class": "chips" }, chip("intact", "Claim signature validates")));
+      card.appendChild(el("p", { text: "The claim signature validates, and the assertions it lists are unchanged." +
+        (d.binding === "mismatch" ? " The claim itself is intact, but it no longer binds to these bytes (see Asset binding)." : "") }));
+    } else {
+      card.appendChild(el("div", { "class": "chips" }, chip(d.signature === "mismatch" ? "broken" : "unknown", d.signature === "mismatch" ? "Claim signature does not validate" : "Unknown")));
+    }
+    var ts = codeEntries(rep, function (k) { return /^timeStamp/.test(k); });
+    card.appendChild(codeList(codeEntries(rep, function (k) { return /^claimSignature|^assertion\.hashedURI/.test(k); }).concat(ts)));
+    if (ts.length) { card.appendChild(el("p", { "class": "note", text: "The timestamp codes were reported, but how c2patool decides timestamp-authority trust, and timestamp-authority revocation, were not examined." })); }
+    else if (d.signature !== "not_checked") { card.appendChild(el("p", { "class": "note", text: "No timestamp: this result depends on the signing certificate being inside its validity period." })); }
+    card.appendChild(precomputed());
+    return card;
+  }
+
+  function trustCard(c) {
+    var card = el("section", { "class": "card", "aria-labelledby": "h-trust" }, el("h3", { id: "h-trust", text: "Trust-policy result" }));
+    card.appendChild(el("div", { "class": "chips" }, POL.map(function (pol) { var t = trustChip(c, pol); return chip(t.cls, t.text); })));
+    var rows = POL.map(function (pol) {
+      var p = c.policies[pol], d = p.derived, rep = report(c, pol);
+      var code = codeEntries(rep, function (k) { return /^signingCredential/.test(k); }).map(function (e) { return e.code; }).join(", ");
+      var state = d.state === "NO_MANIFEST" ? "no manifest (\"No claim found\")" : "\"" + d.state + "\"";
+      var codeNode = null;
+      if (code) {
+        codeNode = el("div", { "class": "mono note code-break" });
+        code.split(".").forEach(function (part, i) { if (i) { codeNode.appendChild(document.createTextNode(".")); codeNode.appendChild(document.createElement("wbr")); } codeNode.appendChild(document.createTextNode(part)); });
+      }
+      return el("tr", null,
+        el("td", null, el("strong", { text: DATA.policies[pol].name })),
+        el("td", null, el("span", { "class": "mono", text: state }), codeNode),
+        el("td", { text: trustMeaning(c, pol) }));
+    });
+    card.appendChild(el("table", { "class": "policy" },
+      el("thead", null, el("tr", null, el("th", { scope: "col", text: "Policy" }), el("th", { scope: "col", text: "c2patool state and code" }), el("th", { scope: "col", text: "What it means here" }))),
+      el("tbody", null, rows)));
+    card.appendChild(el("p", { "class": "note", text: "State words are quoted exactly as c2patool printed them. No production trust list was configured or fetched." }));
+    card.appendChild(precomputed());
+    return card;
+  }
+
+  function concludeSection(c) {
+    var ip = c.interpretation;
+    function block(cls, title, items) {
+      return el("div", { "class": "card " + cls }, el("h4", { text: title, style: "margin:0;font-size:.95rem" }),
+        el("ul", null, (items.length ? items : ["None recorded."]).map(function (t) { return el("li", { text: t }); })));
+    }
+    return el("section", { "aria-labelledby": "sec-conclude" },
+      el("h3", { "class": "section-title", id: "sec-conclude", text: "3. What this can and cannot conclude" }),
+      el("p", { "class": "interp-label", text: "The builder's reading of the recorded results above. It is not tool output." }),
+      el("div", { "class": "conclude" }, block("can", "Can conclude", ip.can), block("cannot", "Cannot conclude", ip.cannot), block("unk", "Unknown", ip.unknown)));
+  }
+
+  function evidenceSection(c) {
+    var im = c.image, run = DATA.run;
+    var detailsList = POL.map(function (pol) {
+      var p = c.policies[pol], other = c.policies[pol === "no_trust_anchors" ? "test_trust_anchors" : "no_trust_anchors"];
+      return el("details", { "class": "evidence" },
+        el("summary", { text: DATA.policies[pol].name + ": command and raw c2patool output" }),
+        el("div", { "class": "evidence-body" },
+          el("p", { "class": "note", text: DATA.policies[pol].summary }),
+          el("p", { "class": "note", text: "Local folder paths are shortened to placeholders such as <work>, <runner> and <c2patool-0.27.23>. Nothing else in the output was changed." }),
+          facts([
+            ["Command", p.command.join(" "), "hash"],
+            ["Working directory", p.working_directory, "hash"],
+            ["Exit code", String(p.exit_code)],
+            ["c2patool state", p.derived.state],
+            ["Report file", "evidence/" + p.report_file, "hash"],
+            ["Report SHA-256", p.report_sha256 + (p.report_sha256 === other.report_sha256 ? " (identical to the other policy's output)" : ""), "hash"]
+          ]),
+          el("pre", { "class": "raw", tabindex: "0", "aria-label": "Raw c2patool output for " + DATA.policies[pol].name, text: p.report_text })));
+    });
+    var tool = el("details", { "class": "evidence" },
+      el("summary", { text: "Input file, tool, settings and runner" }),
+      el("div", { "class": "evidence-body" },
+        facts([
+          ["Input file", "evidence/" + im.file + " (original name " + im.original_name + ")", "hash"],
+          ["Input SHA-256", im.sha256, "hash"],
+          ["Tool", run.tool.reported_version + " (release " + run.tool.release + ", " + run.tool.license + ")"],
+          ["Tool binary SHA-256", run.tool.binary_sha256, "hash"],
+          ["Sandbox profile", run.offline_controls.sandbox_profile, "hash"],
+          ["Network settings", "remote manifest fetch off; OCSP fetch off; allowed network hosts: none"],
+          ["Settings file", run.settings.file + " · SHA-256 " + run.settings.sha256, "hash"],
+          ["Policy B anchor files", Object.keys(run.trust_policies.test_trust_anchors.files).map(function (k) { return k + " · SHA-256 " + run.trust_policies.test_trust_anchors.files[k]; }).join("; "), "hash"],
+          ["Runner", run.runner.repository + " · branch " + run.runner.branch + " · commit " + run.runner.commit + " · " + run.runner.file + " SHA-256 " + run.runner.file_sha256, "hash"],
+          ["Recorded", fmtTime(run.finished) + " on " + run.os + ", Python " + run.python]
+        ]),
+        el("pre", { "class": "raw", tabindex: "0", "aria-label": "Settings file contents", text: run.settings.text })));
+    function setAll(open) { Array.prototype.forEach.call(document.querySelectorAll("#case details.evidence"), function (d) { d.open = open; }); }
+    return el("section", { "aria-labelledby": "sec-evidence" },
+      el("div", { "class": "evidence-head" },
+        el("h3", { id: "sec-evidence", text: "4. Evidence (precomputed, local-only)" }),
+        el("div", { "class": "chips" },
+          el("button", { "class": "btn", type: "button", onclick: function () { setAll(true); }, text: "Expand all evidence" }),
+          el("button", { "class": "btn", type: "button", onclick: function () { setAll(false); }, text: "Collapse all evidence" }))),
+      detailsList, tool);
+  }
+
+  function renderCase(c) {
+    var root = document.getElementById("case"), ip = c.interpretation, o = overall(c);
+    root.textContent = "";
+    root.appendChild(el("div", { "class": "case-head" },
+      el("h2", { id: "case-title", tabindex: "-1", text: ip.title }),
+      el("p", { text: ip.what }),
+      el("div", { "class": "chips" }, chip(o.cls, o.text), POL.map(function (pol) { var t = trustChip(c, pol); return chip(t.cls, t.text); }))));
+    root.appendChild(imageSection(c));
+    root.appendChild(el("h3", { "class": "section-title", text: "2. What the tool checked" }));
+    root.appendChild(el("div", { "class": "checks" }, signerCard(c), bindingCard(c), signatureCard(c), trustCard(c)));
+    root.appendChild(concludeSection(c));
+    root.appendChild(evidenceSection(c));
+  }
+
+  function renderAbout() {
+    var run = DATA.run, f = document.getElementById("about");
+    f.appendChild(el("h2", { text: "About these results" }));
+    f.appendChild(el("p", { text: "All results were produced before this page was built. The product-branch runner ran unchanged; the build script embedded its recorded output and checked every evidence file against its SHA-256. Opening this page runs no validation." }));
+    f.appendChild(facts([
+      ["Recorded", fmtTime(run.started) + " to " + fmtTime(run.finished) + " on " + run.os],
+      ["Runner", run.runner.repository + ", branch " + run.runner.branch + ", commit " + run.runner.commit + " (tree " + run.runner.tree + ")"],
+      ["How the runner was used", run.runner.how_used],
+      ["Fresh run vs recorded results", run.consistency.fresh_results_identical_to_recorded ? "identical to the product branch's recorded results (SHA-256 " + run.consistency.recorded_results_sha256 + ")" : "DIFFERENT from the recorded results"],
+      ["Tool", run.tool.reported_version + ", binary SHA-256 " + run.tool.binary_sha256],
+      ["Test signing certificate", run.tool.test_signing_certificate.join("; ")],
+      ["Official test files", "C2PA public test files, CC-BY-SA-4.0: https://github.com/c2pa-org/public-testfiles (shown as text; this page loads nothing)"],
+      ["Not evaluated", "Production trust lists, certificate revocation, timestamp-authority trust, watermarks, SynthID and AI-image detectors."]
+    ]));
+    document.getElementById("banner-text").textContent = "Every result on this page was recorded on " + fmtTime(run.finished) +
+      " by running " + run.tool.reported_version + " on this Mac, offline, in a network-denied sandbox. Your browser runs no validator; it only displays those recorded results. The page has no upload feature and loads nothing from the network.";
+  }
+
+  renderNav();
+  renderAbout();
+  var m = /^#case=(.+)$/.exec(location.hash);
+  selectCase(m ? decodeURIComponent(m[1]) : DATA.cases[0].id, false);
+  window.addEventListener("hashchange", function () {
+    var mm = /^#case=(.+)$/.exec(location.hash);
+    if (mm && decodeURIComponent(mm[1]) !== current) { selectCase(decodeURIComponent(mm[1]), false); }
+  });
+})();
+</script>
+</body>
+</html>

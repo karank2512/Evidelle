@@ -1,0 +1,23 @@
+{
+ "about": "SYNTHETIC test patterns, hand-written to exercise the viewer's summary-label logic. Each summary has the shape of a c2patool summary from the actual-C2PA runner (an overall state plus success and failure status codes), but none was measured: these are not validation results and not evidence of accuracy.",
+ "patterns": [
+  {"id": "valid-untrusted-signer", "expected": "intact",
+   "summary": {"state": "Valid", "success_codes": ["assertion.dataHash.match", "claimSignature.validated"], "failure_codes": ["signingCredential.untrusted"]}},
+  {"id": "trusted", "expected": "intact",
+   "summary": {"state": "Trusted", "success_codes": ["assertion.dataHash.match", "claimSignature.validated", "signingCredential.trusted"], "failure_codes": []}},
+  {"id": "no-manifest", "expected": "no-credential",
+   "summary": {"state": "NO_MANIFEST", "success_codes": [], "failure_codes": []}},
+  {"id": "tool-error", "expected": "unknown",
+   "summary": {"state": "ERROR", "success_codes": [], "failure_codes": []}},
+  {"id": "binding-mismatch", "expected": "doesnt-match",
+   "summary": {"state": "Invalid", "success_codes": ["claimSignature.validated"], "failure_codes": ["assertion.dataHash.mismatch"]}},
+  {"id": "invalid-other-failure", "expected": "fails-validation",
+   "summary": {"state": "Invalid", "success_codes": ["assertion.dataHash.match", "claimSignature.validated"], "failure_codes": ["assertion.hashedURI.mismatch"]}},
+  {"id": "invalid-signature-mismatch", "expected": "fails-validation",
+   "summary": {"state": "Invalid", "success_codes": ["assertion.dataHash.match"], "failure_codes": ["claimSignature.mismatch"]}},
+  {"id": "unrecognised-state", "expected": "unknown",
+   "summary": {"state": "Unrecognised", "success_codes": ["assertion.dataHash.match", "claimSignature.validated"], "failure_codes": []}},
+  {"id": "valid-without-signature-code", "expected": "unknown",
+   "summary": {"state": "Valid", "success_codes": ["assertion.dataHash.match"], "failure_codes": []}}
+ ]
+}
