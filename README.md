@@ -43,7 +43,7 @@ No packages are installed and no network access is needed.
 ## Run
 
 ```sh
-python3 -m unittest discover -s tests -v   # 45 tests; the 8 that run c2patool skip, naming what is missing
+python3 -m unittest discover -s tests -v   # 46 tests; the 8 that run c2patool skip, naming what is missing
 python3 run_experiment.py                  # full run (about 1 minute); writes results/results.json and RESULTS.md
 python3 run_experiment.py --quick          # fast smoke run; writes results/results_quick.json
 python3 make_manifest.py                   # writes MANIFEST.md (environment, parameters, hashes of the product files)
@@ -54,6 +54,8 @@ The 8 tests that run c2patool need the extracted c2patool 0.27.23 folder (defaul
 ```sh
 AUTHEXP_C2PATOOL_DIR=/path/to/c2patool AUTHEXP_OFFICIAL_DIR=/path/to/official-samples python3 -m unittest discover -s tests -v
 ```
+
+An empty `AUTHEXP_C2PATOOL_DIR` or `AUTHEXP_OFFICIAL_DIR` counts as unset. With `EVIDELLE_KEEP_TEST_FILES=1`, the tests in `tests/test_actual_c2pa.py` and `tests/test_actual_c2pa_regression.py` delete nothing: every temporary folder they create is left in place. `tests/test_core.py` does not honour this variable; it and the experiment's helpers it calls use temporary folders that Python removes automatically.
 
 The product consists of exactly the files listed in [`PRODUCT_ALLOWLIST.txt`](PRODUCT_ALLOWLIST.txt). `MANIFEST.md` records their hashes.
 

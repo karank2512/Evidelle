@@ -144,6 +144,11 @@ def _sha256(path):
 
 
 MISSING_FOR_RERUN = rac.missing_prerequisites()
+# With EVIDELLE_KEEP_TEST_FILES=1 this file deletes nothing: the re-run's temporary folder is left in place.
+KEEP_TEST_FILES = os.environ.get("EVIDELLE_KEEP_TEST_FILES") == "1"
+if KEEP_TEST_FILES:
+    # Left to itself, tempfile first checks its folder by creating and deleting a probe file; naming the folder skips that.
+    tempfile.tempdir = os.environ.get("TMPDIR") or "/tmp"
 
 
 @unittest.skipIf(MISSING_FOR_RERUN, "missing: " + "; ".join(MISSING_FOR_RERUN))
@@ -157,7 +162,8 @@ class TestOfflineRerun(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        shutil.rmtree(cls.tmp, ignore_errors=True)
+        if not KEEP_TEST_FILES:
+            shutil.rmtree(cls.tmp, ignore_errors=True)
 
     def p(self, name):
         return os.path.join(self.tmp, name)

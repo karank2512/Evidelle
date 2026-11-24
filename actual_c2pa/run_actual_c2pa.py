@@ -19,7 +19,7 @@ Usage (from the repository root):  python3 actual_c2pa/run_actual_c2pa.py
 Requires: the extracted c2patool folder (default tools/c2patool-dl/extracted/c2patool, or set
 AUTHEXP_C2PATOOL_DIR), the official sample files (default samples/official/, or set
 AUTHEXP_OFFICIAL_DIR), libjpeg-turbo (cjpeg, djpeg, jpegtran) and macOS sandbox-exec. Optionally
-macOS sips. missing_prerequisites() names whatever is absent.
+macOS sips. An empty variable counts as unset. missing_prerequisites() names whatever is absent.
 """
 
 import hashlib
@@ -37,10 +37,10 @@ sys.path.insert(0, HERE)
 from authexp import synth  # noqa: E402
 from authexp.imageio import PNG_SIGNATURE, decode_png, write_png, write_ppm  # noqa: E402
 
-TOOL_DIR = os.environ.get("AUTHEXP_C2PATOOL_DIR", os.path.join(HERE, "tools", "c2patool-dl", "extracted", "c2patool"))
+TOOL_DIR = os.environ.get("AUTHEXP_C2PATOOL_DIR") or os.path.join(HERE, "tools", "c2patool-dl", "extracted", "c2patool")
 TOOL = os.path.join(TOOL_DIR, "c2patool")
 TEST_CREDS = os.path.join(TOOL_DIR, "sample")
-OFFICIAL = os.environ.get("AUTHEXP_OFFICIAL_DIR", os.path.join(HERE, "samples", "official"))
+OFFICIAL = os.environ.get("AUTHEXP_OFFICIAL_DIR") or os.path.join(HERE, "samples", "official")
 SETTINGS = os.path.join(HERE, "actual_c2pa", "settings", "offline.toml")
 OUT_DIR = os.path.join(HERE, "results", "actual_c2pa")
 WORK = os.path.join(OUT_DIR, "work")

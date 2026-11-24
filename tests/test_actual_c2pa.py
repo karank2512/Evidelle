@@ -24,6 +24,28 @@ from authexp import synth  # noqa: E402
 from authexp.imageio import read_png, write_png  # noqa: E402
 
 MISSING_FOR_INTEGRATION = rac.missing_prerequisites(official=False, jpeg_tools=False)
+# With EVIDELLE_KEEP_TEST_FILES=1 the tests in this file delete nothing: remove_tree() is the only place that removes
+# files, and it then leaves every temporary folder in place.
+KEEP_TEST_FILES = os.environ.get("EVIDELLE_KEEP_TEST_FILES") == "1"
+if KEEP_TEST_FILES:
+    # Left to itself, tempfile first checks its folder by creating and deleting a probe file; naming the folder skips that.
+    tempfile.tempdir = os.environ.get("TMPDIR") or "/tmp"
+
+
+def remove_tree(path):
+    if not KEEP_TEST_FILES:
+        shutil.rmtree(path, ignore_errors=True)
+
+
+def runner_attributes(env, *names):
+    """Import the runner in a fresh interpreter with the given environment and print the named attributes."""
+    res = subprocess.run(
+        [sys.executable, "-I", "-B", "-c",
+         "import sys; sys.path[:0] = sys.argv[1:3]; import run_actual_c2pa as r; "
+         "print('\\n'.join(str(getattr(r, n)) for n in sys.argv[3:]))",
+         ROOT, os.path.join(ROOT, "actual_c2pa")] + list(names),
+        env=env, capture_output=True, text=True, timeout=60, check=True)
+    return res.stdout.splitlines()
 
 
 class TestPrerequisites(unittest.TestCase):
@@ -43,7 +65,7 @@ class TestPrerequisites(unittest.TestCase):
             everything, without_official = self.with_inputs(os.path.join(empty, "c2patool"), os.path.join(empty, "sample"),
                                                             empty)
         finally:
-            shutil.rmtree(empty)
+            remove_tree(empty)
         self.assertIn("c2patool binary", everything)
         self.assertIn("set AUTHEXP_C2PATOOL_DIR", everything)
         self.assertIn("5 of the 5 official sample files", everything)
@@ -51,17 +73,19 @@ class TestPrerequisites(unittest.TestCase):
         self.assertNotIn("official sample", without_official)
 
     def test_present_inputs_are_not_reported(self):
-        d = tempfile.mkdtemp()
+        complete, without_sample = tempfile.mkdtemp(), tempfile.mkdtemp()
         try:
-            open(os.path.join(d, "c2patool"), "w").close()
-            os.makedirs(os.path.join(d, "sample"))
-            for name, _blob, _expected in rac.OFFICIAL_SAMPLES:
-                open(os.path.join(d, name), "w").close()
-            everything, _ = self.with_inputs(os.path.join(d, "c2patool"), os.path.join(d, "sample"), d)
-            os.rmdir(os.path.join(d, "sample"))
-            no_creds, _ = self.with_inputs(os.path.join(d, "c2patool"), os.path.join(d, "sample"), d)
+            for d in (complete, without_sample):
+                open(os.path.join(d, "c2patool"), "w").close()
+                for name, _blob, _expected in rac.OFFICIAL_SAMPLES:
+                    open(os.path.join(d, name), "w").close()
+            os.makedirs(os.path.join(complete, "sample"))
+            everything, _ = self.with_inputs(os.path.join(complete, "c2patool"), os.path.join(complete, "sample"), complete)
+            no_creds, _ = self.with_inputs(os.path.join(without_sample, "c2patool"), os.path.join(without_sample, "sample"),
+                                           without_sample)
         finally:
-            shutil.rmtree(d)
+            remove_tree(complete)
+            remove_tree(without_sample)
         self.assertNotIn("c2patool", everything)
         self.assertNotIn("official sample", everything)
         self.assertIn("c2patool sample/ folder", no_creds)
@@ -69,14 +93,22 @@ class TestPrerequisites(unittest.TestCase):
     def test_official_folder_can_be_set(self):
         d = tempfile.mkdtemp()
         try:
-            res = subprocess.run(
-                [sys.executable, "-I", "-B", "-c",
-                 "import sys; sys.path[:0] = sys.argv[1:3]; import run_actual_c2pa as r; print(r.OFFICIAL)",
-                 ROOT, os.path.join(ROOT, "actual_c2pa")],
-                env=dict(os.environ, AUTHEXP_OFFICIAL_DIR=d), capture_output=True, text=True, timeout=60, check=True)
+            official, = runner_attributes(dict(os.environ, AUTHEXP_OFFICIAL_DIR=d), "OFFICIAL")
         finally:
-            shutil.rmtree(d)
-        self.assertEqual(res.stdout.strip(), d)
+            remove_tree(d)
+        self.assertEqual(official, d)
+
+    def test_empty_variables_count_as_unset(self):
+        env = dict(os.environ, AUTHEXP_OFFICIAL_DIR="", AUTHEXP_C2PATOOL_DIR="")
+        self.assertEqual(runner_attributes(env, "OFFICIAL", "TOOL_DIR"),
+                         [os.path.join(ROOT, "samples", "official"),
+                          os.path.join(ROOT, "tools", "c2patool-dl", "extracted", "c2patool")])
+        # Both test modules call missing_prerequisites() at import; with empty variables they must still import.
+        res = subprocess.run(
+            [sys.executable, "-I", "-B", "-c",
+             "import sys; sys.path[:0] = sys.argv[1:]; import test_actual_c2pa_regression, test_actual_c2pa",
+             os.path.join(ROOT, "tests")], env=env, capture_output=True, text=True, timeout=60)
+        self.assertEqual(res.returncode, 0, res.stderr)
 
 
 class TestReportSummary(unittest.TestCase):
@@ -109,7 +141,7 @@ class TestPngChunkHelpers(unittest.TestCase):
         write_png(self.src, synth.shapes(2), extra_chunks=[(b"caBX", b"placeholder")])
 
     def tearDown(self):
-        shutil.rmtree(self.d)
+        remove_tree(self.d)
 
     def test_recompress_keeps_pixels_and_chunk_but_changes_bytes(self):
         dst = os.path.join(self.d, "re.png")
