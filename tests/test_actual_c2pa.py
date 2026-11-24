@@ -1,13 +1,15 @@
 """Tests for the actual-C2PA experiment helpers.
 
 The unit tests need no external tool. The integration tests run the official c2patool binary
-(offline, network-denied sandbox) and are skipped when it or sandbox-exec is not available.
+(offline, network-denied sandbox). They are skipped when c2patool, its sample/ folder or sandbox-exec
+is missing, and the skip message names what is missing.
 """
 
 import json
 import os
 import shutil
 import struct
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -21,7 +23,60 @@ import run_actual_c2pa as rac  # noqa: E402
 from authexp import synth  # noqa: E402
 from authexp.imageio import read_png, write_png  # noqa: E402
 
-HAVE_TOOL = os.path.exists(rac.TOOL) and shutil.which("sandbox-exec") is not None
+MISSING_FOR_INTEGRATION = rac.missing_prerequisites(official=False, jpeg_tools=False)
+
+
+class TestPrerequisites(unittest.TestCase):
+    """missing_prerequisites() names each absent input; AUTHEXP_OFFICIAL_DIR moves the official sample folder."""
+
+    def with_inputs(self, tool, creds, official):
+        saved = rac.TOOL, rac.TEST_CREDS, rac.OFFICIAL
+        rac.TOOL, rac.TEST_CREDS, rac.OFFICIAL = tool, creds, official
+        try:
+            return "; ".join(rac.missing_prerequisites()), "; ".join(rac.missing_prerequisites(official=False))
+        finally:
+            rac.TOOL, rac.TEST_CREDS, rac.OFFICIAL = saved
+
+    def test_names_each_missing_input(self):
+        empty = tempfile.mkdtemp()
+        try:
+            everything, without_official = self.with_inputs(os.path.join(empty, "c2patool"), os.path.join(empty, "sample"),
+                                                            empty)
+        finally:
+            shutil.rmtree(empty)
+        self.assertIn("c2patool binary", everything)
+        self.assertIn("set AUTHEXP_C2PATOOL_DIR", everything)
+        self.assertIn("5 of the 5 official sample files", everything)
+        self.assertIn("set AUTHEXP_OFFICIAL_DIR", everything)
+        self.assertNotIn("official sample", without_official)
+
+    def test_present_inputs_are_not_reported(self):
+        d = tempfile.mkdtemp()
+        try:
+            open(os.path.join(d, "c2patool"), "w").close()
+            os.makedirs(os.path.join(d, "sample"))
+            for name, _blob, _expected in rac.OFFICIAL_SAMPLES:
+                open(os.path.join(d, name), "w").close()
+            everything, _ = self.with_inputs(os.path.join(d, "c2patool"), os.path.join(d, "sample"), d)
+            os.rmdir(os.path.join(d, "sample"))
+            no_creds, _ = self.with_inputs(os.path.join(d, "c2patool"), os.path.join(d, "sample"), d)
+        finally:
+            shutil.rmtree(d)
+        self.assertNotIn("c2patool", everything)
+        self.assertNotIn("official sample", everything)
+        self.assertIn("c2patool sample/ folder", no_creds)
+
+    def test_official_folder_can_be_set(self):
+        d = tempfile.mkdtemp()
+        try:
+            res = subprocess.run(
+                [sys.executable, "-I", "-B", "-c",
+                 "import sys; sys.path[:0] = sys.argv[1:3]; import run_actual_c2pa as r; print(r.OFFICIAL)",
+                 ROOT, os.path.join(ROOT, "actual_c2pa")],
+                env=dict(os.environ, AUTHEXP_OFFICIAL_DIR=d), capture_output=True, text=True, timeout=60, check=True)
+        finally:
+            shutil.rmtree(d)
+        self.assertEqual(res.stdout.strip(), d)
 
 
 class TestReportSummary(unittest.TestCase):
@@ -82,7 +137,7 @@ class TestPngChunkHelpers(unittest.TestCase):
         self.assertTrue(rac.png_has_chunk(crop))
 
 
-@unittest.skipUnless(HAVE_TOOL, "official c2patool or sandbox-exec not available")
+@unittest.skipIf(MISSING_FOR_INTEGRATION, "missing: " + "; ".join(MISSING_FOR_INTEGRATION))
 class TestActualC2paIntegration(unittest.TestCase):
     """Runs the official binary offline with the bundled TEST credentials."""
 

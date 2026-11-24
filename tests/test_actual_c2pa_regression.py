@@ -5,7 +5,8 @@ Two layers:
   codes below. It needs no tool.
 - TestOfflineRerun re-runs every case with the official c2patool (offline, network-denied sandbox) into a temporary
   folder. It asserts the same expectations plus bounded material claims about the files. It is skipped when the
-  tool, sandbox-exec or the official sample files are not available.
+  tool, its sample/ folder, sandbox-exec, the libjpeg-turbo tools or the official sample files are missing, and the
+  skip message names what is missing. AUTHEXP_C2PATOOL_DIR and AUTHEXP_OFFICIAL_DIR point to folders elsewhere.
 
 The expectations are the recorded results of c2patool 0.27.23. They describe validation states, not whether any
 scene is real.
@@ -142,11 +143,10 @@ def _sha256(path):
         return hashlib.sha256(f.read()).hexdigest()
 
 
-HAVE_RERUN = (os.path.exists(rac.TOOL) and shutil.which("sandbox-exec") is not None and shutil.which("djpeg") is not None
-              and all(os.path.exists(os.path.join(rac.OFFICIAL, n)) for n, _b, _e in rac.OFFICIAL_SAMPLES))
+MISSING_FOR_RERUN = rac.missing_prerequisites()
 
 
-@unittest.skipUnless(HAVE_RERUN, "official c2patool, sandbox-exec, libjpeg tools or official samples not available")
+@unittest.skipIf(MISSING_FOR_RERUN, "missing: " + "; ".join(MISSING_FOR_RERUN))
 class TestOfflineRerun(unittest.TestCase):
     """Re-run every case offline with the official tool and assert states, codes and material claims."""
 
