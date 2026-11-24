@@ -28,9 +28,10 @@ The checker:
   the network. Nothing is uploaded. If writing fails partway, the checker says so and leaves the incomplete page in
   place rather than deleting anything; do not open it.
 
-Privacy: the page replaces local folder paths with placeholders such as `<input-folder>`, but it embeds each file
-exactly as it is, including any metadata inside it (for example camera details or a location), and it records the
-time and time zone of the check and the macOS and Python versions. Share the page only as you would share the files.
+Privacy: the page replaces local folder paths with placeholders such as `<input-folder>` wherever they appear, except
+a folder directly under the root (such as `/tmp`), which is left as it is. It embeds each file exactly as it is,
+including any metadata inside it (for example camera details or a location), and it records the time and time zone of
+the check and the macOS and Python versions. Share the page only as you would share the files.
 
 ## Files
 
@@ -53,8 +54,10 @@ time and time zone of the check and the macOS and Python versions. Share the pag
   checks that the previous `overall()` labelled two of those patterns "Intact".
 - `tests/test_check_files.py`: runs the checker end to end with a stub c2patool that prints synthetic reports. It
   checks the embedded data, the labels and readings from the template's own functions, the page script rendering every
-  file, the removal of folder paths, unreadable tool output and the refusals. Two refusals are not tested: c2patool
-  taking longer than 180 seconds, and a failure partway through writing the page.
+  file, the removal of folder paths, unreadable tool output and most refusals. These refusals are not tested:
+  c2patool or `c2patool --version` running past their time limits (180 and 60 seconds), a system without
+  `sandbox-exec`, a template without exactly one data placeholder, a report nested too deeply to embed in the page,
+  and a failure partway through writing the page.
 
 ## Run the tests
 

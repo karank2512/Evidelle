@@ -405,7 +405,7 @@ class CheckFilesTest(unittest.TestCase):
         self.assertIn("with these failure codes: assertion.missing.", " ".join(by_name["missingassertion.png"]["can"]))
         self.assertIn("These are not the bytes the credential was signed for", " ".join(by_name["mismatch.png"]["can"]))
         bad_sig = " ".join(by_name["mismatchbadsig.png"]["can"])
-        self.assertIn("and the claim signature did not validate", bad_sig)
+        self.assertIn("and the claim signature was not reported as validated", bad_sig)
         self.assertNotIn("signed for", bad_sig)
         for name, reading in by_name.items():
             self.assertEqual((reading["label"], reading["title"]), (name, name))
@@ -446,10 +446,14 @@ class CheckFilesTest(unittest.TestCase):
                           "binding was not checked.", text[name])
             self.assertIn("no usable result (exit code", text[name])
             self.assertNotIn("no manifest", text[name].lower())
+        for name in ("nulljson.png", "deepjson.png"):
+            self.assertIn("c2patool exited with code 0, but its output could not be read as a report.", text[name])
+        self.assertNotIn("but its output could not be read as a report", text["intact.png"])
 
     def test_a_malformed_hash_does_not_stop_the_page(self):
-        first = render_page(self.html, initial_hash="#case=%", read_back=READ_FIRST_VIEW)["first"]
-        self.assertTrue(first.startswith(self.NAMES[0]), first[:80])
+        for initial_hash in ("#case=%", "#case=constructor", "#case=__proto__"):
+            first = render_page(self.html, initial_hash=initial_hash, read_back=READ_FIRST_VIEW)["first"]
+            self.assertTrue(first.startswith(self.NAMES[0]), (initial_hash, first[:80]))
 
     def test_refusals_write_nothing(self):
         gif = os.path.join(self.tmp, "picture.gif")
@@ -498,6 +502,16 @@ class CheckFilesTest(unittest.TestCase):
         changing = os.path.join(work, "selfmodify.png")
         with open(changing, "wb") as f:
             f.write(png_bytes())
+        unreadable = os.path.join(work, "unreadable.png")
+        with open(unreadable, "wb") as f:
+            f.write(png_bytes())
+        os.chmod(unreadable, 0)
+        try:
+            res = run_check(self.tool_dir, out, [unreadable], reference=self.tool_dir)
+        finally:
+            os.chmod(unreadable, 0o644)
+        self.assertEqual(res.returncode, 2)
+        self.assertIn("cannot read", res.stderr)
         for tool_dir, page, files, message in [
                 (self.tool_dir, os.path.join(work, "no-such-folder", "page.html"), self.paths[:1], "does not exist"),
                 (not_executable, out, self.paths[:1], "is not executable"),

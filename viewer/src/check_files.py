@@ -69,7 +69,8 @@ POLICY_TEXT = {
 
 
 class Refusal(Exception):
-    """A reason not to check the files, reported without a traceback. No page is written."""
+    """A reason not to check the files, reported without a traceback. No page is written, except that a page whose
+    writing fails partway is left in place, and the message says so."""
 
 
 def sha256_bytes(data):
@@ -321,7 +322,10 @@ def check(paths, tool_dir, out_path):
     }
     # ASCII only, and no "<" at all, inside the page's script element. Text that is not valid UTF-8 (such as an
     # undecodable file name) is escaped too, so writing the page cannot fail on it.
-    payload = json.dumps(data, ensure_ascii=True, separators=(",", ":")).replace("<", "\\u003c")
+    try:
+        payload = json.dumps(data, ensure_ascii=True, separators=(",", ":")).replace("<", "\\u003c")
+    except RecursionError:
+        raise Refusal("a c2patool report is nested too deeply to embed in the page; no page was written")
     html = template.replace(PLACEHOLDER, payload).encode("utf-8")
     try:
         fd = os.open(out_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)

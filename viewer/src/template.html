@@ -322,7 +322,7 @@ footer.page dl.facts { font-size: .82rem; }
         can.push("These are not the bytes the credential was signed for: its hard-binding hash does not match them (assertion.dataHash.mismatch). c2patool reports the credential as " + a.state + ".");
         can.push("The claim signature still validates: the claim itself is intact, but it does not bind to these bytes.");
       } else {
-        can.push("The hard-binding hash in the manifest does not match these bytes (assertion.dataHash.mismatch), and the claim signature did not validate. c2patool reports the credential as " + a.state + ".");
+        can.push("The hard-binding hash in the manifest does not match these bytes (assertion.dataHash.mismatch), and the claim signature was not reported as validated. c2patool reports the credential as " + a.state + ".");
       }
       cannot.push("Whether the file was edited, re-encoded or given a credential copied from another file. All of these give the same mismatch.");
       cannot.push("What differs, or where. Validation does not locate the difference.");
@@ -354,7 +354,7 @@ footer.page dl.facts { font-size: .82rem; }
       can: can, cannot: cannot, unknown: unknown };
   }
   function selectCase(id, focus) {
-    if (!byId[id]) { id = DATA.cases[0].id; }
+    if (!Object.prototype.hasOwnProperty.call(byId, id)) { id = DATA.cases[0].id; }
     current = id;
     Array.prototype.forEach.call(document.querySelectorAll(".case-btn"), function (b) {
       b.setAttribute("aria-current", b.getAttribute("data-case") === id ? "true" : "false");
@@ -503,7 +503,7 @@ footer.page dl.facts { font-size: .82rem; }
       card.appendChild(el("div", { "class": "chips" }, chip("broken", "Hash does not match these bytes")));
       card.appendChild(el("p", { text: d.signature === "validated"
         ? "The hard-binding hash in the manifest does not match this file: these are not the bytes that were signed. A harmless re-encode, a deliberate edit and a credential copied from another file all give this result, and the check does not say which, or what differs."
-        : "The hard-binding hash in the manifest does not match this file. The claim signature did not validate either, so it is unknown what the credential was signed for." }));
+        : "The hard-binding hash in the manifest does not match this file. The claim signature was not reported as validated either, so it is unknown what the credential was signed for." }));
     } else {
       card.appendChild(el("div", { "class": "chips" }, chip("unknown", "Unknown")));
       card.appendChild(el("p", { text: "The report has no data-hash result, so the binding is unknown." }));
@@ -588,8 +588,8 @@ footer.page dl.facts { font-size: .82rem; }
         el("summary", { text: DATA.policies[pol].name + ": command and raw c2patool output" }),
         el("div", { "class": "evidence-body" },
           el("p", { "class": "note", text: DATA.policies[pol].summary }),
-          el("p", { "class": "note", text: LOCAL ? "Local folder paths are shortened to placeholders such as <input-folder>, <c2patool> and <home> wherever they appear. Nothing else in the output was changed." : "Local folder paths are shortened to placeholders such as <work>, <runner> and <c2patool-0.27.23>. Nothing else in the output was changed." }),
-          p.exit_code !== 0 ? el("p", { "class": "note", text: "c2patool exited with code " + p.exit_code + ". The text below is its standard output and error output as they were captured, under headings added when the evidence was recorded." }) : null,
+          el("p", { "class": "note", text: LOCAL ? "Local folder paths are shortened to placeholders such as <input-folder>, <c2patool> and <home> wherever they appear, except a folder directly under the root, such as /tmp. Nothing else in the output was changed." : "Local folder paths are shortened to placeholders such as <work>, <runner> and <c2patool-0.27.23>. Nothing else in the output was changed." }),
+          (p.exit_code !== 0 || !report(c, pol)) ? el("p", { "class": "note", text: "c2patool exited with code " + p.exit_code + (p.exit_code === 0 ? ", but its output could not be read as a report" : "") + ". The text below is its standard output and error output as they were captured, under headings added when the evidence was recorded." }) : null,
           facts([
             ["Command", p.command.join(" "), "hash"],
             ["Working directory", p.working_directory, "hash"],
