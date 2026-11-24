@@ -27,5 +27,7 @@ tests/test_actual_c2pa_regression.py
 viewer/README.md
 viewer/src/template.html
 viewer/src/derived_facts.py
+viewer/src/check_files.py
 viewer/tests/test_overall_label.py
+viewer/tests/test_check_files.py
 viewer/tests/fixtures/synthetic_state_code_patterns.json
