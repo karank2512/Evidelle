@@ -37,6 +37,18 @@ PLACEHOLDER = "/*__EVIDENCE_DATA__*/null"
 HAVE_SANDBOX = os.path.isfile(check_files.SANDBOX_EXEC)
 NODE = shutil.which("node")
 REAL_TOOL_DIR = os.environ.get("EVIDELLE_C2PATOOL_DIR", "")
+# With EVIDELLE_KEEP_TEST_FILES=1 these tests delete nothing: remove_tree() is the only place that removes files, and it
+# then leaves every temporary folder in place.
+KEEP_TEST_FILES = os.environ.get("EVIDELLE_KEEP_TEST_FILES") == "1"
+if KEEP_TEST_FILES:
+    # Left to itself, tempfile first checks its folder by creating and deleting a probe file; naming the folder skips that.
+    tempfile.tempdir = os.environ.get("TMPDIR") or "/tmp"
+
+
+def remove_tree(path):
+    if not KEEP_TEST_FILES:
+        shutil.rmtree(path, ignore_errors=True)
+
 
 STUB_BODY = r'''"""Test stub for c2patool: prints SYNTHETIC reports chosen by the input file's name. Not measured results."""
 import json
@@ -45,6 +57,8 @@ import sys
 
 args = sys.argv[1:]
 if args == ["--version"]:
+    if os.path.exists(os.path.join(os.path.dirname(os.path.abspath(__file__)), "fail-version")):
+        sys.exit("stub: --version fails in this folder")
     print("c2patool 0.0.0 (test stub)")
     sys.exit(0)
 if len(args) < 3 or args[0] != "--settings" or not os.path.isfile(args[1]):
@@ -54,7 +68,7 @@ trust = args[3:4] == ["trust"]
 if trust and not (os.path.isfile(args[5]) and os.path.isfile(args[7])):
     sys.exit("stub: trust files missing")
 kind = name.split(".")[0].split(" ")[0]
-if kind == "nomanifest":
+if kind in ("nomanifest", "found", "o"):
     sys.stderr.write("Error: No claim found\n")
     sys.exit(1)
 if kind == "toolerror":
@@ -63,13 +77,24 @@ if kind == "toolerror":
 if kind == "nulljson":
     print("null")
     sys.exit(0)
+if kind == "deepjson":
+    print("[" * 100000 + "]" * 100000)
+    sys.exit(0)
+if kind == "selfmodify":
+    with open(args[2], "ab") as f:
+        f.write(b"changed while it was being checked")
 state, succ, fail = "Valid", ["assertion.dataHash.match", "assertion.hashedURI.match", "claimSignature.validated"], []
 if kind == "mismatch":
     state, succ, fail = "Invalid", ["assertion.hashedURI.match", "claimSignature.validated"], ["assertion.dataHash.mismatch"]
+elif kind == "mismatchbadsig":
+    state, succ, fail = ("Invalid", ["assertion.hashedURI.match"],
+                         ["assertion.dataHash.mismatch", "claimSignature.mismatch"])
 elif kind == "invaliduri":
     state, fail = "Invalid", ["assertion.hashedURI.mismatch"]
 elif kind == "missingassertion":
     state, fail = "Invalid", ["assertion.missing"]
+elif kind == "oddexplanation":
+    state, fail = "Invalid", ["assertion.hashedURI.mismatch", "assertion.hashedURI.mismatch"]
 elif kind == "oddstate":
     state = "Unrecognised"
 if trust and kind in ("intact", "mismatch", "invaliduri"):
@@ -91,7 +116,7 @@ report = {
     "validation_results": {"activeManifest": {
         "success": [{"code": c, "explanation": "synthetic"} for c in succ],
         "informational": [],
-        "failure": [{"code": c, "explanation": "synthetic"} for c in fail]}},
+        "failure": [{"code": c, "explanation": 7 if kind == "oddexplanation" else "synthetic"} for c in fail]}},
     "validation_state": state,
 }
 if kind == "warning":
@@ -208,10 +233,17 @@ process.stdout.write(JSON.stringify({ cases: texts, heading: document.getElement
 '''
 
 
-def render_page(html):
-    """Run the page's own script on a fake DOM; returns the rendered text of every file, the heading and the footer."""
+READ_FIRST_VIEW = r'''
+process.stdout.write(JSON.stringify({ first: document.getElementById("case").textContent }));
+'''
+
+
+def render_page(html, initial_hash="", read_back=READ_BACK):
+    """Run the page's own script on a fake DOM; by default returns the rendered text of every file, the heading and
+    the footer."""
     script = html[html.index("<script>") + len("<script>"):html.index("</script>")]
-    res = subprocess.run([NODE, "-"], input=FAKE_DOM + script + READ_BACK, capture_output=True, text=True, timeout=120,
+    dom = FAKE_DOM.replace('global.location = { hash: "" };', "global.location = { hash: %s };" % json.dumps(initial_hash))
+    res = subprocess.run([NODE, "-"], input=dom + script + read_back, capture_output=True, text=True, timeout=120,
                          check=True)
     return json.loads(res.stdout)
 
@@ -234,11 +266,28 @@ class HelpersTest(unittest.TestCase):
             recorded = json.load(f)
         self.assertEqual(check_files.TESTED_RELEASE["sha256"]["c2patool"], recorded["environment"]["tool_binary_sha256"])
 
+    def test_root_level_folders_are_not_replaced(self):
+        self.assertEqual(check_files.sanitizer([("/a", "<x>")])("see https://host/a/b and /a"),
+                         "see https://host/a/b and /a")
+        self.assertEqual(check_files.sanitizer([("/a/b", "<x>")])("/a/b/c"), "<x>/c")
+
+    def test_printable_replaces_characters_utf8_cannot_hold(self):
+        shown = check_files.printable("a\udcffb.png")
+        self.assertTrue(shown.startswith("a") and shown.endswith("b.png") and "�" in shown)
+        shown.encode("utf-8")
+
+    def test_only_a_path_to_the_file_is_masked(self):
+        self.assertEqual(check_files.summarize(1, "", "Error: No claim found\n", "found")["state"], "NO_MANIFEST")
+        self.assertEqual(check_files.summarize(1, "", "Error: No claim found\n", "o")["state"], "NO_MANIFEST")
+        self.assertEqual(check_files.summarize(1, "", "Error: cannot read ./x No claim found.png\n",
+                                               "x No claim found.png")["state"], "ERROR")
+
 
 @unittest.skipUnless(HAVE_SANDBOX and NODE, "these tests need macOS sandbox-exec and node")
 class CheckFilesTest(unittest.TestCase):
     NAMES = ["intact.png", "nomanifest.png", "mismatch.png", "invaliduri.png", "oddstate.png", "toolerror.png",
-             "nulljson.png", "pathintitle.png", "missingassertion.png", "oddclaims.png", "warning.png"]
+             "nulljson.png", "pathintitle.png", "missingassertion.png", "oddclaims.png", "warning.png",
+             "found", "o", "deepjson.png", "oddexplanation.png", "mismatchbadsig.png"]
 
     @classmethod
     def setUpClass(cls):
@@ -264,7 +313,7 @@ class CheckFilesTest(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        shutil.rmtree(cls.tmp, ignore_errors=True)
+        remove_tree(cls.tmp)
 
     def case(self, name):
         return self.data["cases"][self.NAMES.index(name)]
@@ -291,6 +340,11 @@ class CheckFilesTest(unittest.TestCase):
             "missingassertion.png": ("Fails validation", "Untrusted"),
             "oddclaims.png": ("Intact", "Untrusted"),
             "warning.png": ("Intact", "Untrusted"),
+            "found": ("No credential", "Trust n/a"),
+            "o": ("No credential", "Trust n/a"),
+            "deepjson.png": ("Unknown", "Trust unknown"),
+            "oddexplanation.png": ("Fails validation", "Untrusted"),
+            "mismatchbadsig.png": ("Doesn't match", "Untrusted"),
         })
         meaning = {c["image"]["original_name"]: r["meaningB"] for c, r in zip(self.data["cases"], self.page)}
         self.assertTrue(meaning["mismatch.png"].endswith("The overall state is still Invalid because the binding check failed."))
@@ -337,6 +391,8 @@ class CheckFilesTest(unittest.TestCase):
         null = self.case("nulljson.png")["policies"]["no_trust_anchors"]
         self.assertEqual((null["derived"]["state"], null["exit_code"]), ("ERROR", 0))
         self.assertTrue(null["report_text"].startswith("c2patool exit code 0\n--- stdout ---\nnull"))
+        deep = self.case("deepjson.png")["policies"]["no_trust_anchors"]
+        self.assertEqual((deep["derived"]["state"], deep["exit_code"]), ("ERROR", 0))
         warn = self.case("warning.png")["policies"]["no_trust_anchors"]
         self.assertEqual(warn["stderr_text"], "synthetic warning on standard error\n")
         self.assertIsNone(self.case("intact.png")["policies"]["no_trust_anchors"]["stderr_text"])
@@ -348,6 +404,9 @@ class CheckFilesTest(unittest.TestCase):
         self.assertIn("there is no usable result", " ".join(by_name["toolerror.png"]["cannot"]))
         self.assertIn("with these failure codes: assertion.missing.", " ".join(by_name["missingassertion.png"]["can"]))
         self.assertIn("These are not the bytes the credential was signed for", " ".join(by_name["mismatch.png"]["can"]))
+        bad_sig = " ".join(by_name["mismatchbadsig.png"]["can"])
+        self.assertIn("and the claim signature did not validate", bad_sig)
+        self.assertNotIn("signed for", bad_sig)
         for name, reading in by_name.items():
             self.assertEqual((reading["label"], reading["title"]), (name, name))
             self.assertTrue(reading["what"] and reading["cannot"] and reading["unknown"], name)
@@ -374,11 +433,23 @@ class CheckFilesTest(unittest.TestCase):
         self.assertIn("Nothing to check: there is no manifest", text["nomanifest.png"])
         self.assertIn("Claim generator not reported", text["oddclaims.png"])
         self.assertIn("--- stderr ---\nsynthetic warning on standard error", text["warning.png"])
-        for name in ("toolerror.png", "nulljson.png"):
+        self.assertIn("it is unknown what the credential was signed for", text["mismatchbadsig.png"])
+        self.assertIn("is not Valid or Trusted", text["oddstate.png"])
+        self.assertNotIn("so the bound bytes have not changed since signing", text["oddstate.png"])
+        self.assertIn("assertion.hashedURI.mismatch", text["oddexplanation.png"])
+        self.assertIn("c2patool exited with code 1.", text["nomanifest.png"])
+        self.assertIn("SHA-256 of the text below", text["nomanifest.png"])
+        for name in ("found", "o"):
+            self.assertIn("Nothing to check: there is no manifest", text[name])
+        for name in ("toolerror.png", "nulljson.png", "deepjson.png"):
             self.assertIn("c2patool did not produce a usable result for this file (see the raw output), so the "
                           "binding was not checked.", text[name])
             self.assertIn("no usable result (exit code", text[name])
             self.assertNotIn("no manifest", text[name].lower())
+
+    def test_a_malformed_hash_does_not_stop_the_page(self):
+        first = render_page(self.html, initial_hash="#case=%", read_back=READ_FIRST_VIEW)["first"]
+        self.assertTrue(first.startswith(self.NAMES[0]), first[:80])
 
     def test_refusals_write_nothing(self):
         gif = os.path.join(self.tmp, "picture.gif")
@@ -405,14 +476,45 @@ class CheckFilesTest(unittest.TestCase):
         self.assertIn("will not overwrite", res.stderr)
         self.assertEqual(sha256_file(self.out), before)
 
+    def test_more_refusals_write_nothing(self):
+        work = os.path.join(self.tmp, "more-refusals")
+        os.makedirs(work)
+        out = os.path.join(work, "page.html")
+        locked = os.path.join(work, "read-only")
+        os.makedirs(locked)
+        os.chmod(locked, 0o555)
+        try:
+            res = run_check(self.tool_dir, os.path.join(locked, "page.html"), self.paths[:1], reference=self.tool_dir)
+        finally:
+            os.chmod(locked, 0o755)
+        self.assertEqual(res.returncode, 2)
+        self.assertIn("cannot create", res.stderr)
+        not_executable = os.path.join(work, "stub-not-executable")
+        shutil.copytree(self.tool_dir, not_executable)
+        os.chmod(os.path.join(not_executable, "c2patool"), 0o644)
+        bad_version = os.path.join(work, "stub-bad-version")
+        shutil.copytree(self.tool_dir, bad_version)
+        open(os.path.join(bad_version, "fail-version"), "w").close()
+        changing = os.path.join(work, "selfmodify.png")
+        with open(changing, "wb") as f:
+            f.write(png_bytes())
+        for tool_dir, page, files, message in [
+                (self.tool_dir, os.path.join(work, "no-such-folder", "page.html"), self.paths[:1], "does not exist"),
+                (not_executable, out, self.paths[:1], "is not executable"),
+                (bad_version, out, self.paths[:1], "could not run c2patool --version"),
+                (self.tool_dir, out, [changing], "changed or disappeared while it was being checked")]:
+            res = run_check(tool_dir, page, files, reference=self.tool_dir)
+            self.assertEqual(res.returncode, 2, message)
+            self.assertIn(message, res.stderr)
+            self.assertFalse(os.path.exists(page), message)
+
     def test_only_the_tested_release_is_accepted(self):
         refused = os.path.join(self.tmp, "refused-release.html")
         res = run_check(self.tool_dir, refused, self.paths[:1])
         self.assertEqual(res.returncode, 2)
         self.assertIn("is not the file from c2patool 0.27.23", res.stderr)
         no_store = os.path.join(self.tmp, "stub-without-store")
-        shutil.copytree(self.tool_dir, no_store)
-        os.remove(os.path.join(no_store, "sample", "store.cfg"))
+        shutil.copytree(self.tool_dir, no_store, ignore=shutil.ignore_patterns("store.cfg"))
         res = run_check(no_store, refused, self.paths[:1], reference=self.tool_dir)
         self.assertEqual(res.returncode, 2)
         self.assertIn("sample/store.cfg is missing", res.stderr)
@@ -463,7 +565,7 @@ class RealC2patoolTest(unittest.TestCase):
             self.assertEqual(states, [("Valid", "Trusted"), ("NO_MANIFEST", "NO_MANIFEST")])
             self.assertEqual([r["overall"]["short"] for r in run_page_functions(data["cases"])], ["Intact", "No credential"])
         finally:
-            shutil.rmtree(tmp, ignore_errors=True)
+            remove_tree(tmp)
 
 
 if __name__ == "__main__":

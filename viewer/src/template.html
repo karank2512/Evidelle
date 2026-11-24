@@ -253,7 +253,7 @@ footer.page dl.facts { font-size: .82rem; }
         if (!x || typeof x.code !== "string" || !filter(x.code)) { return; }
         var key = x.code;
         if (seen[key]) { seen[key].count += 1; return; }
-        seen[key] = { kind: kind, code: x.code, explanation: x.explanation || "", count: 1 };
+        seen[key] = { kind: kind, code: x.code, explanation: typeof x.explanation === "string" ? x.explanation : "", count: 1 };
         out.push(seen[key]);
       });
     });
@@ -318,8 +318,12 @@ footer.page dl.facts { font-size: .82rem; }
       unknown.push("What happened to the content before it was signed.");
     } else if (o.short === "Doesn't match") {
       what = "The file carries a C2PA manifest, but its hard-binding hash does not match these bytes.";
-      can.push("These are not the bytes the credential was signed for: its hard-binding hash does not match them (assertion.dataHash.mismatch). c2patool reports the credential as " + a.state + ".");
-      if (a.signature === "validated") { can.push("The claim signature still validates: the claim itself is intact, but it does not bind to these bytes."); }
+      if (a.signature === "validated") {
+        can.push("These are not the bytes the credential was signed for: its hard-binding hash does not match them (assertion.dataHash.mismatch). c2patool reports the credential as " + a.state + ".");
+        can.push("The claim signature still validates: the claim itself is intact, but it does not bind to these bytes.");
+      } else {
+        can.push("The hard-binding hash in the manifest does not match these bytes (assertion.dataHash.mismatch), and the claim signature did not validate. c2patool reports the credential as " + a.state + ".");
+      }
       cannot.push("Whether the file was edited, re-encoded or given a credential copied from another file. All of these give the same mismatch.");
       cannot.push("What differs, or where. Validation does not locate the difference.");
       cannot.push("Anything about whether the content is genuine.");
@@ -492,12 +496,14 @@ footer.page dl.facts { font-size: .82rem; }
       card.appendChild(el("p", { text: "Nothing to check: there is no manifest, so there is no hash binding the claims to these bytes." }));
     } else if (d.binding === "match") {
       card.appendChild(el("div", { "class": "chips" }, chip("intact", "Hash matches these bytes")));
-      card.appendChild(el("p", { text: d.state === "Invalid"
-        ? "The hard-binding hash recorded in the manifest matches this file, but the credential fails validation (see the failure codes), so this alone does not show that the bytes are unchanged since signing."
-        : "The manifest's hard-binding hash matches this file, so the bound bytes have not changed since signing." }));
+      card.appendChild(el("p", { text: (d.state === "Valid" || d.state === "Trusted")
+        ? "The manifest's hard-binding hash matches this file, so the bound bytes have not changed since signing."
+        : "The hard-binding hash recorded in the manifest matches this file, but c2patool's overall result is not Valid or Trusted (see the codes), so this alone does not show that the bytes are unchanged since signing." }));
     } else if (d.binding === "mismatch") {
       card.appendChild(el("div", { "class": "chips" }, chip("broken", "Hash does not match these bytes")));
-      card.appendChild(el("p", { text: "The hard-binding hash in the manifest does not match this file: these are not the bytes that were signed. A harmless re-encode, a deliberate edit and a credential copied from another file all give this result, and the check does not say which, or what differs." }));
+      card.appendChild(el("p", { text: d.signature === "validated"
+        ? "The hard-binding hash in the manifest does not match this file: these are not the bytes that were signed. A harmless re-encode, a deliberate edit and a credential copied from another file all give this result, and the check does not say which, or what differs."
+        : "The hard-binding hash in the manifest does not match this file. The claim signature did not validate either, so it is unknown what the credential was signed for." }));
     } else {
       card.appendChild(el("div", { "class": "chips" }, chip("unknown", "Unknown")));
       card.appendChild(el("p", { text: "The report has no data-hash result, so the binding is unknown." }));
@@ -582,14 +588,15 @@ footer.page dl.facts { font-size: .82rem; }
         el("summary", { text: DATA.policies[pol].name + ": command and raw c2patool output" }),
         el("div", { "class": "evidence-body" },
           el("p", { "class": "note", text: DATA.policies[pol].summary }),
-          el("p", { "class": "note", text: LOCAL ? "Local folder paths are shortened to placeholders such as <input-folder>, <c2patool> and <home>. Nothing else in the output was changed." : "Local folder paths are shortened to placeholders such as <work>, <runner> and <c2patool-0.27.23>. Nothing else in the output was changed." }),
+          el("p", { "class": "note", text: LOCAL ? "Local folder paths are shortened to placeholders such as <input-folder>, <c2patool> and <home> wherever they appear. Nothing else in the output was changed." : "Local folder paths are shortened to placeholders such as <work>, <runner> and <c2patool-0.27.23>. Nothing else in the output was changed." }),
+          p.exit_code !== 0 ? el("p", { "class": "note", text: "c2patool exited with code " + p.exit_code + ". The text below is its standard output and error output as they were captured, under headings added when the evidence was recorded." }) : null,
           facts([
             ["Command", p.command.join(" "), "hash"],
             ["Working directory", p.working_directory, "hash"],
             ["Exit code", String(p.exit_code)],
             ["c2patool state", p.derived.state],
             p.report_file ? ["Report file", "evidence/" + p.report_file, "hash"] : null,
-            ["Report SHA-256", p.report_sha256 + (p.report_sha256 === other.report_sha256 ? " (identical to the other policy's output)" : ""), "hash"]
+            ["SHA-256 of the text below", p.report_sha256 + (p.report_sha256 === other.report_sha256 ? " (identical to the other policy's output)" : ""), "hash"]
           ]),
           el("pre", { "class": "raw", tabindex: "0", "aria-label": "Raw c2patool output for " + DATA.policies[pol].name, text: p.report_text }),
           p.stderr_text ? el("pre", { "class": "raw", tabindex: "0", "aria-label": "c2patool error output for " + DATA.policies[pol].name, text: "--- stderr ---\n" + p.stderr_text }) : null));
@@ -668,11 +675,16 @@ footer.page dl.facts { font-size: .82rem; }
 
   renderNav();
   renderAbout();
-  var m = /^#case=(.+)$/.exec(location.hash);
-  selectCase(m ? decodeURIComponent(m[1]) : DATA.cases[0].id, false);
+  // The file named in the URL (#case=...), or null. A malformed name such as "%" is ignored instead of stopping the page.
+  function caseFromHash() {
+    var m = /^#case=(.+)$/.exec(location.hash);
+    if (!m) { return null; }
+    try { return decodeURIComponent(m[1]); } catch (e) { return null; }
+  }
+  selectCase(caseFromHash() || DATA.cases[0].id, false);
   window.addEventListener("hashchange", function () {
-    var mm = /^#case=(.+)$/.exec(location.hash);
-    if (mm && decodeURIComponent(mm[1]) !== current) { selectCase(decodeURIComponent(mm[1]), false); }
+    var id = caseFromHash();
+    if (id && id !== current) { selectCase(id, false); }
   });
 })();
 </script>

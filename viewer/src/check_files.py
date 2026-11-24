@@ -118,12 +118,21 @@ def image_kind(data):
     return None
 
 
+def printable(text):
+    """Text that can always be printed and stored as UTF-8: characters that are not valid there become U+FFFD."""
+    return text.encode("utf-8", "surrogatepass").decode("utf-8", "replace")
+
+
 def sanitizer(pairs):
-    """Replace local folder paths with placeholders, longest path first."""
+    """Replace local folder paths with placeholders wherever they appear, longest path first.
+
+    A folder directly under the root, such as /tmp, is too short and too common to replace safely, so it is left as
+    it is.
+    """
     expanded = set()
     for path, label in pairs:
         for p in (path, os.path.realpath(path)):
-            if p and p != os.sep:
+            if p and p.strip(os.sep).count(os.sep) >= 1:
                 expanded.add((p, label))
     ordered = sorted(expanded, key=lambda x: -len(x[0]))
 
@@ -163,9 +172,10 @@ def unreadable(rc):
 def summarize(rc, stdout, stderr, name):
     """The runner's summary of one c2patool run. Output it cannot read becomes ERROR instead of stopping the check."""
     try:
-        # The file name is masked so that a name containing "No claim found" cannot change the state.
-        summary = rac.summarize_report(rc, stdout, stderr.replace(name, "<file>"))
-    except (AttributeError, TypeError, ValueError):
+        # Paths to the file are masked so that a name containing "No claim found" cannot change the state. Only the
+        # name after a "/" is masked, so a short name such as "found" cannot alter c2patool's own message.
+        summary = rac.summarize_report(rc, stdout, stderr.replace("/" + name, "/<file>"))
+    except (AttributeError, TypeError, ValueError, RecursionError):
         return unreadable(rc)
     for key in ("failure_codes", "informational_codes", "success_codes"):
         if key in summary:
@@ -241,7 +251,7 @@ def check(paths, tool_dir, out_path):
             if rc == 0:
                 try:
                     declared = claims_from_report(stdout)
-                except (ValueError, AttributeError, TypeError):
+                except (ValueError, AttributeError, TypeError, RecursionError):
                     summary = unreadable(rc)
             if declared is not None:
                 text = stdout if stdout.endswith("\n") else stdout + "\n"
@@ -265,14 +275,14 @@ def check(paths, tool_dir, out_path):
             unchanged = False
         if not unchanged:
             raise Refusal("%s changed or disappeared while it was being checked" % name)
-        image = {"original_name": name, "format": fmt, "width": width, "height": height, "bytes": len(data),
+        image = {"original_name": printable(name), "format": fmt, "width": width, "height": height, "bytes": len(data),
                  "sha256": sha256_bytes(data),
                  "data_uri": "data:%s;base64,%s" % (mime, base64.b64encode(data).decode("ascii"))}
         cases.append({"id": "file-%d" % i, "origin": "local",
                       "source": {"kind": "Your file, read on this computer. It was not uploaded anywhere."},
                       "transform": "None. Checked exactly as found.", "image": image, "claims": claims,
                       "policies": policies})
-        lines.append("%d. %s: %s, %d bytes, SHA-256 %s" % (i, name, fmt, len(data), image["sha256"]))
+        lines.append("%d. %s: %s, %d bytes, SHA-256 %s" % (i, image["original_name"], fmt, len(data), image["sha256"]))
         for pol, letter in zip(POLICIES, "AB"):
             d = policies[pol]["derived"]
             lines.append("   policy %s: c2patool state %s; binding %s, signature %s, signer %s"
@@ -309,9 +319,9 @@ def check(paths, tool_dir, out_path):
         "policies": POLICY_TEXT,
         "cases": cases,
     }
-    payload = json.dumps(data, ensure_ascii=False, separators=(",", ":"))
-    # Inside the page's script element: no "<" at all, and no raw line or paragraph separators.
-    payload = payload.replace("<", "\\u003c").replace("\u2028", "\\u2028").replace("\u2029", "\\u2029")
+    # ASCII only, and no "<" at all, inside the page's script element. Text that is not valid UTF-8 (such as an
+    # undecodable file name) is escaped too, so writing the page cannot fail on it.
+    payload = json.dumps(data, ensure_ascii=True, separators=(",", ":")).replace("<", "\\u003c")
     html = template.replace(PLACEHOLDER, payload).encode("utf-8")
     try:
         fd = os.open(out_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
@@ -323,8 +333,9 @@ def check(paths, tool_dir, out_path):
         with os.fdopen(fd, "wb") as f:
             f.write(html)
     except OSError as e:
-        os.unlink(out_path)  # remove the partial page this run created, so that a rerun is not blocked
-        raise Refusal("could not write %s: %s" % (out_path, e.strerror))
+        # Nothing is deleted: the incomplete page stays where it is, and the message says not to use it.
+        raise Refusal("could not finish writing %s: %s. The incomplete page was left in place; do not open it, and "
+                      "choose a new file name" % (out_path, e.strerror))
     lines.append("Wrote %s (%d bytes, readable only by you). Open it in a browser: it shows these results and loads "
                  "nothing from the network." % (out_path, len(html)))
     return lines
@@ -341,9 +352,9 @@ def main(argv=None):
     try:
         lines = check(args.files, args.c2patool_dir, args.out)
     except Refusal as e:
-        print("check_files: %s" % e, file=sys.stderr)
+        print(printable("check_files: %s" % e), file=sys.stderr)
         return 2
-    print("\n".join(lines))
+    print(printable("\n".join(lines)))
     return 0
 
 

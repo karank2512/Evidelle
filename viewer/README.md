@@ -25,7 +25,8 @@ The checker:
 - prints each file's c2patool state and the facts derived from it;
 - writes one self-contained page to `--out` (the file must not exist yet; it is created readable only by you), with
   the results and the checked files embedded. Open it in a browser. The page runs no validation and loads nothing from
-  the network. Nothing is uploaded.
+  the network. Nothing is uploaded. If writing fails partway, the checker says so and leaves the incomplete page in
+  place rather than deleting anything; do not open it.
 
 Privacy: the page replaces local folder paths with placeholders such as `<input-folder>`, but it embeds each file
 exactly as it is, including any metadata inside it (for example camera details or a location), and it records the
@@ -52,7 +53,8 @@ time and time zone of the check and the macOS and Python versions. Share the pag
   checks that the previous `overall()` labelled two of those patterns "Intact".
 - `tests/test_check_files.py`: runs the checker end to end with a stub c2patool that prints synthetic reports. It
   checks the embedded data, the labels and readings from the template's own functions, the page script rendering every
-  file, the removal of folder paths, unreadable tool output and the refusals.
+  file, the removal of folder paths, unreadable tool output and the refusals. Two refusals are not tested: c2patool
+  taking longer than 180 seconds, and a failure partway through writing the page.
 
 ## Run the tests
 
@@ -65,6 +67,9 @@ The checker starts its own sandbox, so do not run these tests inside another `sa
 c2patool on the two sample images bundled with it. It runs only when `EVIDELLE_C2PATOOL_DIR` points to the extracted
 c2patool 0.27.23 release folder, and is skipped otherwise.
 
+With `EVIDELLE_KEEP_TEST_FILES=1`, the tests delete nothing: every temporary folder and file they create is left in
+place, inside `TMPDIR` (set it to a folder of your choice).
+
 ## Limits
 
 - "Trusted" under policy B means only that the signer chains to the public C2PA test roots shipped with c2patool,
@@ -74,6 +79,8 @@ c2patool 0.27.23 release folder, and is skipped otherwise.
   file whose credential is stored outside the file may show as having no credential, or as a result the checker
   cannot use. c2patool's own timestamp checks run, but how it decides timestamp-authority trust was not examined.
 - macOS only, c2patool 0.27.23 only, JPEG and PNG only, and up to 25 MB per file.
+- Only data-hash bindings (`assertion.dataHash`) are recognised. A file bound to its credential another way, for
+  example by a box hash, shows as Unknown.
 - The labels and the "can and cannot conclude" text come from fixed rules applied to c2patool's codes. They describe
   credential checks only. They are not real-or-fake verdicts.
 - The test fixtures are hand-written synthetic patterns and a stub c2patool. They are not measured validation results
