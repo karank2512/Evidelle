@@ -43,11 +43,19 @@ No packages are installed and no network access is needed.
 ## Run
 
 ```sh
-python3 -m unittest discover -s tests -v   # 42 tests; the 8 that run c2patool skip if it is absent
+python3 -m unittest discover -s tests -v   # 46 tests; the 8 that run c2patool skip, naming what is missing
 python3 run_experiment.py                  # full run (about 1 minute); writes results/results.json and RESULTS.md
 python3 run_experiment.py --quick          # fast smoke run; writes results/results_quick.json
 python3 make_manifest.py                   # writes MANIFEST.md (environment, parameters, hashes of the product files)
 ```
+
+The 8 tests that run c2patool need the extracted c2patool 0.27.23 folder (default `tools/c2patool-dl/extracted/c2patool`, or set `AUTHEXP_C2PATOOL_DIR`), macOS `sandbox-exec`, and, for 5 of them, the five official test files (default `samples/official/`, or set `AUTHEXP_OFFICIAL_DIR`) and libjpeg-turbo `cjpeg`/`djpeg`/`jpegtran`. None of these is in the repository (see "Actual C2PA evaluation" below). When something is missing, those tests are skipped and the skip message names it. To run them with the folders kept elsewhere:
+
+```sh
+AUTHEXP_C2PATOOL_DIR=/path/to/c2patool AUTHEXP_OFFICIAL_DIR=/path/to/official-samples python3 -m unittest discover -s tests -v
+```
+
+An empty `AUTHEXP_C2PATOOL_DIR` or `AUTHEXP_OFFICIAL_DIR` counts as unset. With `EVIDELLE_KEEP_TEST_FILES=1`, the tests in `tests/test_actual_c2pa.py` and `tests/test_actual_c2pa_regression.py` delete nothing: every temporary folder they create is left in place. `tests/test_core.py` does not honour this variable; it and the experiment's helpers it calls use temporary folders that Python removes automatically.
 
 The product consists of exactly the files listed in [`PRODUCT_ALLOWLIST.txt`](PRODUCT_ALLOWLIST.txt). `MANIFEST.md` records their hashes.
 
@@ -126,7 +134,7 @@ This part uses the official C2PA command-line tool and a few official C2PA test 
   - The licence is MIT OR Apache-2.0.
   - The binary is ad-hoc signed only (no Developer ID or notarization). It was run from the experiment folder and never added to `PATH` or installed system-wide.
   - Extract it to `tools/c2patool-dl/extracted/`, or set `AUTHEXP_C2PATOOL_DIR`.
-- **Official test files** (CC-BY-SA-4.0). Five files from https://github.com/c2pa-org/public-testfiles under `legacy/1.4/image/jpeg/`: `adobe-20220124-CA.jpg`, `-E-sig-CA.jpg`, `-E-dat-CA.jpg`, `-E-uri-CA.jpg` and `truepic-20230212-landscape.jpg`. Each matched GitHub's recorded git blob hash. Their content was inspected before use: ribbons and a landscape, with no people. Place them in `samples/official/`.
+- **Official test files** (CC-BY-SA-4.0). Five files from https://github.com/c2pa-org/public-testfiles under `legacy/1.4/image/jpeg/`: `adobe-20220124-CA.jpg`, `-E-sig-CA.jpg`, `-E-dat-CA.jpg`, `-E-uri-CA.jpg` and `truepic-20230212-landscape.jpg`. Each matched GitHub's recorded git blob hash. Their content was inspected before use: ribbons and a landscape, with no people. Place them in `samples/official/`, or set `AUTHEXP_OFFICIAL_DIR` to their folder.
 - **Bundled test credentials.** These are the `sample/` files in the release zip. The signing certificate's subject is "C2PA Test Signing Cert", with OU "FOR TESTING_ONLY", valid 2022-06-10 to 2030-08-26.
   - **The matching private key (`sample/es256_private.key`) is published inside the release zip.** Anyone can therefore produce signatures that validate as `Trusted` under the C2PA test root.
   - In this repository, `Trusted` means only "chains to the public C2PA test root". It never means production trust.

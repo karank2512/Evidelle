@@ -17,8 +17,9 @@ whether a scene is real.
 
 Usage (from the repository root):  python3 actual_c2pa/run_actual_c2pa.py
 Requires: the extracted c2patool folder (default tools/c2patool-dl/extracted/c2patool, or set
-AUTHEXP_C2PATOOL_DIR), the official sample files in samples/official/, libjpeg-turbo (cjpeg,
-djpeg, jpegtran) and macOS sandbox-exec. Optionally macOS sips.
+AUTHEXP_C2PATOOL_DIR), the official sample files (default samples/official/, or set
+AUTHEXP_OFFICIAL_DIR), libjpeg-turbo (cjpeg, djpeg, jpegtran) and macOS sandbox-exec. Optionally
+macOS sips. An empty variable counts as unset. missing_prerequisites() names whatever is absent.
 """
 
 import hashlib
@@ -36,10 +37,10 @@ sys.path.insert(0, HERE)
 from authexp import synth  # noqa: E402
 from authexp.imageio import PNG_SIGNATURE, decode_png, write_png, write_ppm  # noqa: E402
 
-TOOL_DIR = os.environ.get("AUTHEXP_C2PATOOL_DIR", os.path.join(HERE, "tools", "c2patool-dl", "extracted", "c2patool"))
+TOOL_DIR = os.environ.get("AUTHEXP_C2PATOOL_DIR") or os.path.join(HERE, "tools", "c2patool-dl", "extracted", "c2patool")
 TOOL = os.path.join(TOOL_DIR, "c2patool")
 TEST_CREDS = os.path.join(TOOL_DIR, "sample")
-OFFICIAL = os.path.join(HERE, "samples", "official")
+OFFICIAL = os.environ.get("AUTHEXP_OFFICIAL_DIR") or os.path.join(HERE, "samples", "official")
 SETTINGS = os.path.join(HERE, "actual_c2pa", "settings", "offline.toml")
 OUT_DIR = os.path.join(HERE, "results", "actual_c2pa")
 WORK = os.path.join(OUT_DIR, "work")
@@ -100,6 +101,28 @@ def git_blob_sha(path):
 
 def rel(path):
     return os.path.relpath(path, HERE)
+
+
+def missing_prerequisites(official=True, jpeg_tools=True):
+    """What an offline run needs but cannot find, as short descriptions; an empty list when nothing is missing.
+
+    The c2patool folder can be set with AUTHEXP_C2PATOOL_DIR and the official sample folder with AUTHEXP_OFFICIAL_DIR.
+    """
+    missing = []
+    if not os.path.isfile(TOOL):
+        missing.append("c2patool binary %s (set AUTHEXP_C2PATOOL_DIR to the extracted c2patool folder)" % rel(TOOL))
+    elif not os.path.isdir(TEST_CREDS):
+        missing.append("c2patool sample/ folder %s (part of the c2patool release)" % rel(TEST_CREDS))
+    if shutil.which("sandbox-exec") is None:
+        missing.append("macOS sandbox-exec")
+    if jpeg_tools:
+        missing.extend("libjpeg-turbo %s" % t for t in ("cjpeg", "djpeg", "jpegtran") if shutil.which(t) is None)
+    if official:
+        absent = [name for name, _blob, _expected in OFFICIAL_SAMPLES if not os.path.isfile(os.path.join(OFFICIAL, name))]
+        if absent:
+            missing.append("%d of the %d official sample files in %s (set AUTHEXP_OFFICIAL_DIR to their folder)"
+                           % (len(absent), len(OFFICIAL_SAMPLES), rel(OFFICIAL)))
+    return missing
 
 
 def run_tool(args, cwd):
@@ -270,9 +293,9 @@ def cert_dates(pem_path):
 
 def collect(work=WORK):
     """Run every recorded case offline and return the results (writes only into `work`)."""
-    for need in (TOOL, SETTINGS):
-        if not os.path.exists(need):
-            sys.exit("missing: %s" % rel(need))
+    missing = missing_prerequisites() + ([] if os.path.exists(SETTINGS) else ["settings file %s" % rel(SETTINGS)])
+    if missing:
+        sys.exit("missing: " + "; ".join(missing))
     os.makedirs(work, exist_ok=True)
     results = {"tool": TOOL_SOURCE, "environment": {}, "offline_controls": {
         "sandbox_profile": SANDBOX_PROFILE, "settings_file": rel(SETTINGS),
