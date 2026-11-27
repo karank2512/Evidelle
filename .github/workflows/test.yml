@@ -4,6 +4,7 @@ on:
   push:
     branches: [product, main]
   pull_request:
+  workflow_dispatch:
 
 jobs:
   tests:
@@ -62,7 +63,7 @@ jobs:
 
   pages:
     needs: tests
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/product' || github.ref == 'refs/heads/main')
+    if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/product' || github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     permissions:
       pages: write
