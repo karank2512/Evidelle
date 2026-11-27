@@ -58,6 +58,11 @@ web/vendor/c2pa-utilities/signingAlg.js
 web/vendor/c2pa-utilities/assetSize.js
 web/vendor/highgain/index.js
 web/vendor/ts-deepmerge/index.js
+web/vendor/onnxruntime-web/ort.wasm.min.mjs
+web/vendor/onnxruntime-web/ort-wasm-simd-threaded.mjs
+web/vendor/onnxruntime-web/ort-wasm-simd-threaded.wasm
+web/detector-model.fp16.onnx
+detector_eval/export_onnx.py
 RESULTS_WATERMARK.md
 RESULTS_DETECTOR.md
 watermark_eval/run_watermark_eval.py

@@ -1,8 +1,9 @@
 # Pinned inputs for the web app
 
-Everything the page uses is vendored under `web/` — nothing is fetched at runtime (the page declares
-`connect-src 'none'`). This file records what each artifact is, where it came from, and how to verify or
-refresh it. Regenerate `trust-anchors.js` with `python3 web/build_trust_module.py` after updating PEMs.
+Everything the page uses is vendored under `web/` — fetched from this same site only (the page declares
+`connect-src 'self'`), so no request can reach a third party and the checked image never leaves the
+device. This file records what each artifact is, where it came from, and how to verify or refresh it.
+Regenerate `trust-anchors.js` with `python3 web/build_trust_module.py` after updating PEMs.
 
 ## Verifier: @contentauth/c2pa-web 0.17.1
 
@@ -59,4 +60,39 @@ Verify's extra end-entity "allowed list" is not applied; a few more signers may 
   contradiction.
 - Timestamp authorities are checked against the pinned TSA list (the repo's c2patool run did not
   configure one).
-- `remoteManifestFetch` and `ocspFetch` are off; `connect-src 'none'` makes any fetch impossible anyway.
+- `remoteManifestFetch` and `ocspFetch` are off; `connect-src 'self'` allows only same-origin fetches
+  (the on-demand detector files), so no third party can be reached.
+
+## Experimental detector: onnxruntime-web 1.31.1 + commfor-model-384 (fp16)
+
+Loaded **on demand only** (section 4 "Experimental: AI-image check") — never precached; `sw.js` caches
+the files after first use.
+
+- npm package `onnxruntime-web@1.31.1`, published 2026-10-26, licence MIT.
+- Tarball integrity (npm registry): `sha512-5GeH+bWQ+HxM10z7erGlsWqryrwMbSvm/1tkIsKTT48g0fI19VXVVC435t4t7VsPdSQeS7NmuZPXrQ73k82URw==`
+- Vendored files (unmodified, from `dist/`): `ort.wasm.min.mjs` (WASM-only ESM entry),
+  `ort-wasm-simd-threaded.mjs`, `ort-wasm-simd-threaded.wasm` (SHA-256s:
+  `c21d9c32…`, `30ed0b5c…`, `4b884c20…` — full values in `check_web.py` history / `shasum -a 256`).
+- Runs with `env.wasm.numThreads = 1` — GitHub Pages sends no cross-origin isolation headers, so
+  SharedArrayBuffer threading is unavailable anyway.
+
+Re-vendor:
+
+```sh
+npm pack onnxruntime-web@1.31.1
+# copy dist/ort.wasm.min.mjs, dist/ort-wasm-simd-threaded.{mjs,wasm} into vendor/onnxruntime-web/
+```
+
+### `detector-model.fp16.onnx` (43.7 MB, committed binary)
+
+- Source weights: `OwensLab/commfor-model-384` (Community Forensics ViT-Small, MIT) — the same pinned
+  checkpoint the detector arm evaluated (`RESULTS_DETECTOR.md`); source SHA-256 `b89f3627…`.
+- Exported by `detector_eval/export_onnx.py` (torch → ONNX fp32 → repacked single file → fp16 with
+  `keep_io_types`, opset 17). File SHA-256 `78cc1dc6c49a3a5d68fbc8d160e2799ec21837d12662d5b3f9d978c7bb44c52f`.
+- Parity measured on 120 eval images vs the PyTorch original: fp32 max |Δlogit| 0.0002 (0 flips);
+  fp16 max |Δ| 0.057 (**0 sign flips** — shipped); int8-dynamic 5 flips and int8-static 39 flips
+  (rejected). The published onnx-community int8 export of this model was already shown defective
+  (~0.51 accuracy) in `RESULTS_DETECTOR.md`.
+- Browser-vs-torch check (Playwright, canvas preprocessing): a midjourney-v5 eval image scored
+  logit 2.46–2.92 vs torch 3.07, and a RAISE real photo scored 2.92 vs torch 2.76 — a true
+  borderline false positive (the model's documented ~3.5% FPR tail), same reading both ways.

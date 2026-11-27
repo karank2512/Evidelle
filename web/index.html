@@ -4,12 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <!--
-  CSP note: connect-src 'none' means this page can make no network requests after it
-  loads. Every script and the verifier are vendored files under vendor/; the trust
-  lists are pinned inside trust-anchors.js. Verification runs entirely on-device.
-  Check DevTools > Network: after the initial page load there are zero requests.
+  CSP note: connect-src 'self' means this page can fetch files only from this same
+  site — no request can reach any third party. Your image is read in the browser and
+  never sent anywhere. Every script, the verifier and the optional detector model
+  are vendored/pinned files under vendor/ and this directory. Check DevTools >
+  Network: every request after load is to this origin's own files.
 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self' blob:; connect-src 'none'; img-src 'self' blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self' blob:; connect-src 'self'; img-src 'self' blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="theme-color" content="#f6f6f3" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#161615" media="(prefers-color-scheme: dark)">
@@ -33,14 +34,15 @@
         the evidence section. It never means a claim is true.</li>
       <li>Declared claims, such as “captured by a camera”, are the signer’s statements, not proven origin.</li>
       <li>A missing credential is not evidence either way: many tools never add one and some platforms strip them.</li>
-      <li>Certificate revocation status and remote (cloud) manifests are not fetched — the page makes no network
-        requests at all.</li>
+      <li>Certificate revocation status and remote (cloud) manifests are not fetched.</li>
+      <li>An optional experimental check can score the image with an AI-image detector (one-time ~60 MB download from
+        this site). It is a probability score, not a verdict, and it is wrong often enough to say so plainly.</li>
     </ul>
     <div class="banner" role="note">
       <strong>Everything happens on this device.</strong>
       The file is read by your browser and verified locally by the pinned C2PA WebAssembly verifier. There is no upload
-      and no analytics: this page declares <code>connect-src 'none'</code>, so after loading it can make no network
-      request. Airplane mode works.
+      and no analytics: this page declares <code>connect-src 'self'</code>, so it can only fetch this site's own files —
+      your image is never sent anywhere. Airplane mode works after the first visit.
     </div>
   </header>
 
