@@ -67,6 +67,151 @@ async function ensureEngine() {
   return enginePromise;
 }
 
+/* ---------- experimental AI-image detector ----------
+ * OwensLab/commfor-model-384 (Community Forensics, MIT), exported by this repo to
+ * fp16 ONNX (detector_eval/export_onnx.py — fp32 export verified logit-identical to
+ * the PyTorch original; fp16 showed zero sign flips on 120 eval images). Runs via the
+ * pinned onnxruntime-web WASM build, fetched from this site only on demand.
+ * It produces a probability score — never a verdict. Calibrated on the numbers in
+ * RESULTS_DETECTOR.md. */
+const DETECTOR = {
+  engine: 'onnxruntime-web', engineVersion: '1.31.1',
+  npmIntegrity: 'sha512-5GeH+bWQ+HxM10z7erGlsWqryrwMbSvm/1tkIsKTT48g0fI19VXVVC435t4t7VsPdSQeS7NmuZPXrQ73k82URw==',
+  modelFile: './detector-model.fp16.onnx',
+  modelSha256: '78cc1dc6c49a3a5d68fbc8d160e2799ec21837d12662d5b3f9d978c7bb44c52f',
+  modelSource: 'OwensLab/commfor-model-384 (MIT), exported to fp16 ONNX by detector_eval/export_onnx.py',
+  downloadBytes: 59 * 1024 * 1024,
+};
+let detectorPromise = null;
+
+async function ensureDetector(onProgress) {
+  detectorPromise ??= (async () => {
+    const ort = await import('./vendor/onnxruntime-web/ort.wasm.min.mjs');
+    /* wasmPaths defaults to the module's own directory — the glue and .wasm ship together. */
+    ort.env.wasm.numThreads = 1;
+    const res = await fetch(DETECTOR.modelFile);
+    if (!res.ok) { throw new Error('model fetch failed (' + res.status + ')'); }
+    const total = DETECTOR.downloadBytes;
+    const chunks = [];
+    let got = 0;
+    const rd = res.body.getReader();
+    for (;;) {
+      const r = await rd.read();
+      if (r.done) { break; }
+      chunks.push(r.value); got += r.value.length;
+      if (onProgress) { onProgress(got, total); }
+    }
+    const buf = new Uint8Array(got);
+    let off = 0;
+    chunks.forEach((c) => { buf.set(c, off); off += c.length; });
+    const session = await ort.InferenceSession.create(buf.buffer, { executionProviders: ['wasm'] });
+    return { ort, session };
+  })().catch((err) => { detectorPromise = null; throw err; });
+  return detectorPromise;
+}
+
+/* Same recipe as the authors' demo: resize shorter edge to 440, center-crop 384,
+ * ImageNet normalization. Canvas downsampling differs slightly from the eval's
+ * bicubic path — verified harmless on known eval samples. */
+const DET_MEAN = [0.485, 0.456, 0.406];
+const DET_STD = [0.229, 0.224, 0.225];
+async function detectorPixels(file) {
+  const bmp = await createImageBitmap(file);
+  const s = 440 / Math.min(bmp.width, bmp.height);
+  const w = Math.max(384, Math.round(bmp.width * s));
+  const h = Math.max(384, Math.round(bmp.height * s));
+  const a = document.createElement('canvas');
+  a.width = w; a.height = h;
+  const ca = a.getContext('2d', { willReadFrequently: true });
+  ca.imageSmoothingQuality = 'high';
+  ca.drawImage(bmp, 0, 0, w, h);
+  bmp.close();
+  const sx = Math.floor((w - 384) / 2);
+  const sy = Math.floor((h - 384) / 2);
+  const px = ca.getImageData(sx, sy, 384, 384).data;
+  const out = new Float32Array(3 * 384 * 384);
+  for (let i = 0; i < 384 * 384; i++) {
+    for (let ch = 0; ch < 3; ch++) {
+      out[ch * 384 * 384 + i] = (px[i * 4 + ch] / 255 - DET_MEAN[ch]) / DET_STD[ch];
+    }
+  }
+  return out;
+}
+
+/* Fixed wording for the score zones — calibrated on RESULTS_DETECTOR.md numbers:
+ * balanced accuracy 0.91 at full size, specificity 0.965, but only 66% on the newest
+ * generator tested and 38% of fakes caught after a JPEG q50 re-save. */
+function detectorZone(p) {
+  if (p >= 0.9) {
+    return { cls: 'broken', text: 'Scores like the AI-generated images this model was tested on' };
+  }
+  if (p >= 0.5) {
+    return { cls: 'unknown', text: 'Leans toward the AI-generated side of the model’s scale, in its least certain zone' };
+  }
+  if (p > 0.1) {
+    return { cls: 'unknown', text: 'Leans toward the real-photo side of the model’s scale, in its least certain zone' };
+  }
+  return { cls: 'intact', text: 'Scores like the real photos this model was tested on' };
+}
+
+function detectorSection(c) {
+  const sec = el('section', { 'aria-labelledby': 'sec-detector' },
+    el('h3', { class: 'section-title', id: 'sec-detector', text: '4. Experimental: AI-image check' }));
+  const card = el('div', { class: 'card' },
+    el('div', { class: 'chips' }, chip('unknown', 'EXPERIMENTAL — a probability score, not a verdict')),
+    el('p', { text: 'A pinned AI-image detector runs on this picture, on this device. In offline tests it caught most '
+      + 'AI-generated images at full size, missed about 1 in 3 of the newest generator’s, caught only ~2 in 5 after a '
+      + 'JPEG re-save, and wrongly flagged ~1 in 28 real photos. A low score is not proof an image is real.' }));
+  const body = el('div');
+  const run = el('button', {
+    class: 'btn', type: 'button',
+    text: 'Run the experimental check (~60 MB one-time download from this site)',
+    onclick: async () => {
+      run.disabled = true;
+      body.textContent = '';
+      const note = el('p', { class: 'note' });
+      body.appendChild(note);
+      try {
+        const { ort, session } = await ensureDetector((got, total) => {
+          note.textContent = 'Downloading the detector model — ' + (got / 1048576).toFixed(0)
+            + ' of ~' + Math.round(total / 1048576) + ' MB (once, then cached by this browser)…';
+        });
+        note.textContent = 'Scoring on this device…';
+        const px = await detectorPixels(c.file);
+        const input = new ort.Tensor('float32', px, [1, 3, 384, 384]);
+        const outMap = await session.run({ pixel_values: input });
+        const logit = outMap.logits.data[0];
+        const p = 1 / (1 + Math.exp(-logit));
+        const zone = detectorZone(p);
+        c.detector = { logit, p };
+        body.textContent = '';
+        body.appendChild(el('div', { class: 'chips' },
+          chip('unknown', 'EXPERIMENTAL — a probability score, not a verdict'), chip(zone.cls, zone.text)));
+        body.appendChild(facts([
+          ['Detector score', p.toFixed(3) + ' toward AI-generated (0–1; 0.5 is the model’s cutoff)'],
+          ['Raw logit', logit.toFixed(3), 'hash'],
+          ['What it read', 'center 384×384 crop of this image, resized like the eval'],
+        ]));
+        body.appendChild(el('p', { class: 'note', text: 'What it can say: this score is evidence, stronger when it is '
+          + 'near 0 or 1. What it cannot say: whether the image is real or fake. The model is strongest on 2023–24 '
+          + 'diffusion generators, weakest on the newest ones and on small or heavily re-compressed images — '
+          + 'most pictures saved off social media are re-compressed.' }));
+      } catch (err) {
+        body.textContent = '';
+        body.appendChild(el('p', { text: 'The experimental check could not run: ' + (err && err.message ? err.message : err) }));
+        run.disabled = false;
+      }
+    },
+  });
+  body.appendChild(run);
+  card.appendChild(body);
+  card.appendChild(el('p', { class: 'note', text: 'Detector: ' + DETECTOR.modelSource
+    + ' · runtime ' + DETECTOR.engine + ' ' + DETECTOR.engineVersion + ' (pinned, vendored) · model SHA-256 '
+    + DETECTOR.modelSha256.slice(0, 16) + '… · measured performance in RESULTS_DETECTOR.md' }));
+  sec.appendChild(card);
+  return sec;
+}
+
 /* ---------- small DOM helpers (same shape as the repo's viewer template) ---------- */
 
 function el(tag, attrs) {
@@ -621,15 +766,15 @@ function evidenceSection(c) {
           + TRUST.INTERIM_TRUST_LIST.sha256 + '), ' + TRUST.INTERIM_TRUST_LIST.fetched
           + ' — the list verify.contentauthenticity.org uses'],
         ['Settings', 'remoteManifestFetch: off · ocspFetch: off · timestamp trust: pinned TSA list'],
-        ['Network', 'This page declares connect-src \'none\' — it can make no network requests after loading. '
-          + 'Confirm in DevTools → Network, or check it in airplane mode.'],
+        ['Network', 'This page declares connect-src \'self\' — it can fetch only this site’s own files; your image is '
+          + 'never sent anywhere. Confirm in DevTools → Network, or check it in airplane mode.'],
       ])));
   function setAll(open) {
     caseEl.querySelectorAll('details.evidence').forEach((d) => { d.open = open; });
   }
   return el('section', { 'aria-labelledby': 'sec-evidence' },
     el('div', { class: 'evidence-head' },
-      el('h3', { id: 'sec-evidence', text: '4. Evidence' }),
+      el('h3', { id: 'sec-evidence', text: '5. Evidence' }),
       el('div', { class: 'chips' },
         el('button', { class: 'btn', type: 'button', onclick: () => setAll(true), text: 'Expand all' }),
         el('button', { class: 'btn', type: 'button', onclick: () => setAll(false), text: 'Collapse all' }))),
@@ -647,6 +792,7 @@ function renderCase(c) {
   caseEl.appendChild(el('h3', { class: 'section-title', text: '2. What the verifier checked' }));
   caseEl.appendChild(el('div', { class: 'checks' }, signerCard(c), bindingCard(c), signatureCard(c), trustCard(c)));
   caseEl.appendChild(concludeSection(c));
+  if (c.file) { caseEl.appendChild(detectorSection(c)); }
   caseEl.appendChild(evidenceSection(c));
 }
 
@@ -694,7 +840,7 @@ let seq = 0;
 async function checkFile(file) {
   const head = new Uint8Array(await file.slice(0, 16).arrayBuffer());
   const c = {
-    id: 'f' + (++seq), name: file.name || 'unnamed file', size: file.size,
+    id: 'f' + (++seq), file, name: file.name || 'unnamed file', size: file.size,
     mime: file.type || 'unknown', checkedAt: null, derived: null, claims: null,
     store: null, error: null, objectUrl: URL.createObjectURL(file),
     sublabel: (file.type || '?') + ' · ' + file.size.toLocaleString('en') + ' bytes',
@@ -796,7 +942,8 @@ drop.addEventListener('drop', (ev) => { if (ev.dataTransfer && ev.dataTransfer.f
       + TRUST.TSA_TRUST_LIST.certificates + ') + frozen CAI interim list (' + TRUST.INTERIM_TRUST_LIST.certificates
       + ' CAs) — all pinned by SHA-256, fetched ' + TRUST.MANIFEST_TRUST_LIST.fetched],
     ['Accepted inputs', 'JPEG, PNG or WebP up to 25 MB, sniffed by magic bytes — other types are refused'],
-    ['Not evaluated', 'Certificate revocation (OCSP off), remote (cloud) manifests, watermarks, SynthID and AI-image detectors'],
+    ['Experimental check', 'Optional on-device AI-image score (OwensLab/commfor-model-384, fp16 ONNX, pinned ' + DETECTOR.modelSha256.slice(0, 16) + '…) — evidence, never a verdict'],
+    ['Not evaluated', 'Certificate revocation (OCSP off), remote (cloud) manifests, watermarks, SynthID'],
     ['Note on platforms', 'Many social platforms strip credentials on upload, so “no credential” is the common answer — and it says nothing either way'],
   ]));
 })();

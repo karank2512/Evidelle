@@ -1,6 +1,8 @@
-/* Service worker: precaches the whole app shell so the check works fully offline
- * after the first visit. Bump CACHE when any vendored file or asset changes. */
-const CACHE = 'evidelle-20261127-1';
+/* Service worker: precaches the app shell so the check works fully offline after
+ * the first visit. The experimental detector (~60 MB) is not precached — its files
+ * are fetched from this same site only if the user runs the detector, then cached
+ * for reuse. Bump CACHE when any vendored file or asset changes. */
+const CACHE = 'evidelle-20261128-1';
 const ASSETS = [
   './',
   './index.html',
@@ -23,6 +25,14 @@ const ASSETS = [
   './vendor/highgain/index.js',
   './vendor/ts-deepmerge/index.js',
 ];
+/* Fetched on demand (same origin) and then kept in the same cache. */
+const RUNTIME_ASSETS = [
+  './vendor/onnxruntime-web/ort.wasm.min.mjs',
+  './vendor/onnxruntime-web/ort-wasm-simd-threaded.mjs',
+  './vendor/onnxruntime-web/ort-wasm-simd-threaded.wasm',
+  './detector-model.fp16.onnx',
+];
+const RUNTIME_SET = new Set(RUNTIME_ASSETS.map((u) => new URL(u, self.location.href).pathname));
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting()));
@@ -35,6 +45,15 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') { return; }
   e.respondWith(
-    caches.match(e.request, { ignoreSearch: true }).then((hit) => hit || fetch(e.request))
+    caches.match(e.request, { ignoreSearch: true }).then((hit) => {
+      if (hit) { return hit; }
+      return fetch(e.request).then((res) => {
+        if (res.ok && RUNTIME_SET.has(new URL(e.request.url).pathname)) {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(e.request, copy));
+        }
+        return res;
+      });
+    })
   );
 });

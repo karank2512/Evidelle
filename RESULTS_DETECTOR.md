@@ -80,7 +80,7 @@ unless they re-export the ONNX themselves.
 ## What these numbers support — and what they do not
 
 - A positive reading on a *recent* generator is meaningful but not decisive: spec 0.965
-  means ~1 in 15 real photos is called fake at this threshold. At low real-world
+  means ~1 in 28 real photos is called fake at this threshold. At low real-world
   prevalence of AI images, false alarms can dominate — a point the tool's wording must
   preserve (the repo already refuses real-or-fake verdicts).
 - Detection falls steeply with generator recency (FLUX 66% < DALL-E 3 73% < SD-1.x 99%+)
@@ -102,3 +102,14 @@ unless they re-export the ONNX themselves.
   own simple re-saves, not platform pipelines.
 - This detector is one signal among many; nothing here estimates the prevalence of
   AI-generated images anywhere.
+
+## Follow-up: the model was shipped in the app after all (2026-11-28)
+
+The "custom ONNX export — feasible but unproven" caveat above was resolved: `detector_eval/export_onnx.py`
+exports this checkpoint to ONNX and checks parity against the PyTorch original on 120 eval images. fp32
+was logit-identical (max |Δ| 0.0002); **fp16 (43.7 MB, `web/detector-model.fp16.onnx`) had zero sign
+flips and was shipped**; int8-dynamic (5 flips) and int8-static (39 flips) were measured and rejected.
+In-browser via pinned `onnxruntime-web` 1.31.1, a midjourney-v5 eval image scored logit 2.46–2.92 vs
+torch 3.07, and a RAISE photo 2.92 vs torch 2.76 (a real borderline false positive — the ~3.5% FPR
+tail — rendered identically by both). The app presents the score with these measured error rates and
+never as a verdict; it is fetched on demand (~60 MB with the runtime), never precached.
