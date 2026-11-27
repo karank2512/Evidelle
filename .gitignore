@@ -8,3 +8,4 @@ tools/
 samples/
 results/actual_c2pa/work/
 web/vendor/_pkgs/
+.venv/

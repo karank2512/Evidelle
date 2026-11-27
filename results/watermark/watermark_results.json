@@ -1,0 +1,1138 @@
+{
+  "payload_dwtDctSvd": "65766964656C6C65",
+  "riva_bits": [
+    1,
+    1,
+    1,
+    0,
+    0,
+    0,
+    1,
+    0,
+    1,
+    0,
+    1,
+    0,
+    1,
+    0,
+    1,
+    1,
+    0,
+    1,
+    0,
+    1,
+    0,
+    0,
+    1,
+    0,
+    0,
+    1,
+    1,
+    0,
+    1,
+    0,
+    1,
+    1
+  ],
+  "images": 12,
+  "families": {
+    "landscape": {
+      "dwtDctSvd": {
+        "none": {
+          "detected": 12,
+          "refused": 0,
+          "agree": []
+        },
+        "jpeg_q90": {
+          "detected": 5,
+          "refused": 0,
+          "agree": []
+        },
+        "jpeg_q75": {
+          "detected": 0,
+          "refused": 0,
+          "agree": []
+        },
+        "jpeg_q50": {
+          "detected": 0,
+          "refused": 0,
+          "agree": []
+        },
+        "jpeg_q30": {
+          "detected": 0,
+          "refused": 0,
+          "agree": []
+        },
+        "jpeg_q15": {
+          "detected": 0,
+          "refused": 0,
+          "agree": []
+        },
+        "webp_q80": {
+          "detected": 0,
+          "refused": 0,
+          "agree": []
+        },
+        "webp_q50": {
+          "detected": 0,
+          "refused": 0,
+          "agree": []
+        },
+        "webp_q20": {
+          "detected": 0,
+          "refused": 0,
+          "agree": []
+        },
+        "half_then_double": {
+          "detected": 12,
+          "refused": 0,
+          "agree": []
+        },
+        "crop_1px": {
+          "detected": 0,
+          "refused": 0,
+          "agree": []
+        },
+        "crop_8px": {
+          "detected": 0,
+          "refused": 0,
+          "agree": []
+        },
+        "sips_jpeg_rt_q80": {
+          "detected": 12,
+          "refused": 0,
+          "agree": []
+        }
+      },
+      "rivaGan": {
+        "none": {
+          "detected": 6,
+          "refused": 0,
+          "agree": [
+            0.938,
+            0.969,
+            1.0,
+            0.938,
+            1.0,
+            1.0,
+            0.906,
+            1.0,
+            0.969,
+            1.0,
+            1.0,
+            0.906
+          ]
+        },
+        "jpeg_q90": {
+          "detected": 2,
+          "refused": 0,
+          "agree": [
+            0.938,
+            0.938,
+            0.969,
+            0.938,
+            0.938,
+            0.906,
+            0.875,
+            1.0,
+            0.875,
+            0.938,
+            1.0,
+            0.906
+          ]
+        },
+        "jpeg_q75": {
+          "detected": 0,
+          "refused": 0,
+          "agree": [
+            0.938,
+            0.938,
+            0.906,
+            0.844,
+            0.906,
+            0.906,
+            0.812,
+            0.906,
+            0.75,
+            0.969,
+            0.969,
+            0.844
+          ]
+        },
+        "jpeg_q50": {
+          "detected": 0,
+          "refused": 0,
+          "agree": [
+            0.656,
+            0.781,
+            0.719,
+            0.75,
+            0.844,
+            0.812,
+            0.656,
+            0.719,
+            0.594,
+            0.844,
+            0.906,
+            0.75
+          ]
+        },
+        "jpeg_q30": {
+          "detected": 0,
+          "refused": 0,
+          "agree": [
+            0.719,
+            0.719,
+            0.594,
+            0.719,
+            0.75,
+            0.875,
+            0.594,
+            0.75,
+            0.375,
+            0.75,
+            0.812,
+            0.656
+          ]
+        },
+        "jpeg_q15": {
+          "detected": 0,
+          "refused": 0,
+          "agree": [
+            0.5,
+            0.688,
+            0.656,
+            0.594,
+            0.594,
+            0.656,
+            0.625,
+            0.531,
+            0.562,
+            0.594,
+            0.844,
+            0.656
+          ]
+        },
+        "webp_q80": {
+          "detected": 1,
+          "refused": 0,
+          "agree": [
+            0.844,
+            0.844,
+            0.781,
+            0.719,
+            0.906,
+            0.812,
+            0.781,
+            0.906,
+            0.594,
+            0.969,
+            1.0,
+            0.812
+          ]
+        },
+        "webp_q50": {
+          "detected": 0,
+          "refused": 0,
+          "agree": [
+            0.688,
+            0.781,
+            0.688,
+            0.688,
+            0.75,
+            0.75,
+            0.562,
+            0.812,
+            0.562,
+            0.844,
+            0.688,
+            0.688
+          ]
+        },
+        "webp_q20": {
+          "detected": 0,
+          "refused": 0,
+          "agree": [
+            0.625,
+            0.625,
+            0.656,
+            0.594,
+            0.688,
+            0.688,
+            0.562,
+            0.594,
+            0.5,
+            0.5,
+            0.625,
+            0.656
+          ]
+        },
+        "half_then_double": {
+          "detected": 3,
+          "refused": 0,
+          "agree": [
+            0.938,
+            0.969,
+            1.0,
+            0.938,
+            0.969,
+            1.0,
+            0.906,
+            0.969,
+            0.969,
+            0.969,
+            1.0,
+            0.906
+          ]
+        },
+        "crop_1px": {
+          "detected": 0,
+          "refused": 12,
+          "agree": []
+        },
+        "crop_8px": {
+          "detected": 0,
+          "refused": 12,
+          "agree": []
+        },
+        "sips_jpeg_rt_q80": {
+          "detected": 2,
+          "refused": 0,
+          "agree": [
+            0.938,
+            0.969,
+            0.969,
+            0.938,
+            0.969,
+            0.938,
+            0.875,
+            1.0,
+            0.906,
+            0.938,
+            1.0,
+            0.875
+          ]
+        }
+      },
+      "diff": {
+        "dwtDctSvd": [
+          {
+            "mean_abs": 1.6476999918619792,
+            "max": 149
+          },
+          {
+            "mean_abs": 1.530548095703125,
+            "max": 99
+          },
+          {
+            "mean_abs": 1.4942626953125,
+            "max": 102
+          },
+          {
+            "mean_abs": 1.4527384440104167,
+            "max": 93
+          },
+          {
+            "mean_abs": 1.5086568196614583,
+            "max": 151
+          },
+          {
+            "mean_abs": 1.4237111409505208,
+            "max": 61
+          },
+          {
+            "mean_abs": 1.4588216145833333,
+            "max": 81
+          },
+          {
+            "mean_abs": 1.4052378336588542,
+            "max": 92
+          },
+          {
+            "mean_abs": 1.3790944417317708,
+            "max": 147
+          },
+          {
+            "mean_abs": 1.4763081868489583,
+            "max": 100
+          },
+          {
+            "mean_abs": 1.4018300374348958,
+            "max": 71
+          },
+          {
+            "mean_abs": 1.4493967692057292,
+            "max": 158
+          }
+        ],
+        "rivaGan": [
+          {
+            "mean_abs": 2.273778279622396,
+            "max": 3
+          },
+          {
+            "mean_abs": 2.2657368977864585,
+            "max": 3
+          },
+          {
+            "mean_abs": 2.2414957682291665,
+            "max": 3
+          },
+          {
+            "mean_abs": 2.298304239908854,
+            "max": 3
+          },
+          {
+            "mean_abs": 2.2390340169270835,
+            "max": 3
+          },
+          {
+            "mean_abs": 2.261103312174479,
+            "max": 3
+          },
+          {
+            "mean_abs": 2.2826131184895835,
+            "max": 3
+          },
+          {
+            "mean_abs": 2.295537312825521,
+            "max": 3
+          },
+          {
+            "mean_abs": 2.2736358642578125,
+            "max": 3
+          },
+          {
+            "mean_abs": 2.239044189453125,
+            "max": 3
+          },
+          {
+            "mean_abs": 2.293512980143229,
+            "max": 3
+          },
+          {
+            "mean_abs": 2.251378377278646,
+            "max": 3
+          }
+        ]
+      },
+      "fp": {
+        "dwtDctSvd": [
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          }
+        ],
+        "rivaGan": [
+          {
+            "detected": false,
+            "agree": 0.406
+          },
+          {
+            "detected": false,
+            "agree": 0.562
+          },
+          {
+            "detected": false,
+            "agree": 0.594
+          },
+          {
+            "detected": false,
+            "agree": 0.438
+          },
+          {
+            "detected": false,
+            "agree": 0.469
+          },
+          {
+            "detected": false,
+            "agree": 0.5
+          },
+          {
+            "detected": false,
+            "agree": 0.594
+          },
+          {
+            "detected": false,
+            "agree": 0.5
+          },
+          {
+            "detected": false,
+            "agree": 0.469
+          },
+          {
+            "detected": false,
+            "agree": 0.625
+          },
+          {
+            "detected": false,
+            "agree": 0.594
+          },
+          {
+            "detected": false,
+            "agree": 0.469
+          }
+        ]
+      },
+      "copy_attack": {
+        "dwtDctSvd": [
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          }
+        ],
+        "rivaGan": [
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          }
+        ]
+      }
+    },
+    "shapes": {
+      "dwtDctSvd": {
+        "none": {
+          "detected": 12,
+          "refused": 0,
+          "agree": []
+        },
+        "jpeg_q90": {
+          "detected": 3,
+          "refused": 0,
+          "agree": []
+        },
+        "jpeg_q75": {
+          "detected": 0,
+          "refused": 0,
+          "agree": []
+        },
+        "jpeg_q50": {
+          "detected": 0,
+          "refused": 0,
+          "agree": []
+        },
+        "jpeg_q30": {
+          "detected": 0,
+          "refused": 0,
+          "agree": []
+        },
+        "jpeg_q15": {
+          "detected": 0,
+          "refused": 0,
+          "agree": []
+        },
+        "webp_q80": {
+          "detected": 0,
+          "refused": 0,
+          "agree": []
+        },
+        "webp_q50": {
+          "detected": 0,
+          "refused": 0,
+          "agree": []
+        },
+        "webp_q20": {
+          "detected": 0,
+          "refused": 0,
+          "agree": []
+        },
+        "half_then_double": {
+          "detected": 12,
+          "refused": 0,
+          "agree": []
+        },
+        "crop_1px": {
+          "detected": 0,
+          "refused": 0,
+          "agree": []
+        },
+        "crop_8px": {
+          "detected": 0,
+          "refused": 0,
+          "agree": []
+        },
+        "sips_jpeg_rt_q80": {
+          "detected": 10,
+          "refused": 0,
+          "agree": []
+        }
+      },
+      "rivaGan": {
+        "none": {
+          "detected": 0,
+          "refused": 0,
+          "agree": [
+            0.562,
+            0.812,
+            0.594,
+            0.75,
+            0.812,
+            0.594,
+            0.812,
+            0.781,
+            0.844,
+            0.531,
+            0.656,
+            0.594
+          ]
+        },
+        "jpeg_q90": {
+          "detected": 0,
+          "refused": 0,
+          "agree": [
+            0.469,
+            0.781,
+            0.562,
+            0.656,
+            0.812,
+            0.531,
+            0.781,
+            0.75,
+            0.781,
+            0.531,
+            0.656,
+            0.562
+          ]
+        },
+        "jpeg_q75": {
+          "detected": 0,
+          "refused": 0,
+          "agree": [
+            0.469,
+            0.688,
+            0.531,
+            0.688,
+            0.75,
+            0.531,
+            0.781,
+            0.594,
+            0.719,
+            0.5,
+            0.625,
+            0.531
+          ]
+        },
+        "jpeg_q50": {
+          "detected": 0,
+          "refused": 0,
+          "agree": [
+            0.469,
+            0.688,
+            0.5,
+            0.625,
+            0.812,
+            0.5,
+            0.719,
+            0.625,
+            0.688,
+            0.469,
+            0.594,
+            0.438
+          ]
+        },
+        "jpeg_q30": {
+          "detected": 0,
+          "refused": 0,
+          "agree": [
+            0.438,
+            0.719,
+            0.5,
+            0.594,
+            0.656,
+            0.469,
+            0.688,
+            0.469,
+            0.656,
+            0.469,
+            0.594,
+            0.406
+          ]
+        },
+        "jpeg_q15": {
+          "detected": 0,
+          "refused": 0,
+          "agree": [
+            0.375,
+            0.719,
+            0.625,
+            0.594,
+            0.781,
+            0.5,
+            0.625,
+            0.594,
+            0.719,
+            0.469,
+            0.562,
+            0.375
+          ]
+        },
+        "webp_q80": {
+          "detected": 0,
+          "refused": 0,
+          "agree": [
+            0.438,
+            0.656,
+            0.562,
+            0.625,
+            0.75,
+            0.531,
+            0.719,
+            0.594,
+            0.656,
+            0.531,
+            0.625,
+            0.406
+          ]
+        },
+        "webp_q50": {
+          "detected": 0,
+          "refused": 0,
+          "agree": [
+            0.438,
+            0.594,
+            0.594,
+            0.531,
+            0.719,
+            0.5,
+            0.688,
+            0.594,
+            0.625,
+            0.5,
+            0.625,
+            0.469
+          ]
+        },
+        "webp_q20": {
+          "detected": 0,
+          "refused": 0,
+          "agree": [
+            0.406,
+            0.562,
+            0.594,
+            0.5,
+            0.719,
+            0.5,
+            0.625,
+            0.469,
+            0.562,
+            0.531,
+            0.5,
+            0.281
+          ]
+        },
+        "half_then_double": {
+          "detected": 0,
+          "refused": 0,
+          "agree": [
+            0.531,
+            0.844,
+            0.625,
+            0.719,
+            0.75,
+            0.594,
+            0.812,
+            0.781,
+            0.781,
+            0.531,
+            0.656,
+            0.562
+          ]
+        },
+        "crop_1px": {
+          "detected": 0,
+          "refused": 12,
+          "agree": []
+        },
+        "crop_8px": {
+          "detected": 0,
+          "refused": 12,
+          "agree": []
+        },
+        "sips_jpeg_rt_q80": {
+          "detected": 0,
+          "refused": 0,
+          "agree": [
+            0.5,
+            0.719,
+            0.594,
+            0.656,
+            0.844,
+            0.531,
+            0.781,
+            0.812,
+            0.781,
+            0.531,
+            0.656,
+            0.594
+          ]
+        }
+      },
+      "diff": {
+        "dwtDctSvd": [
+          {
+            "mean_abs": 1.3692677815755208,
+            "max": 118
+          },
+          {
+            "mean_abs": 1.5190684000651042,
+            "max": 201
+          },
+          {
+            "mean_abs": 1.4978434244791667,
+            "max": 181
+          },
+          {
+            "mean_abs": 1.4740549723307292,
+            "max": 135
+          },
+          {
+            "mean_abs": 1.5529022216796875,
+            "max": 180
+          },
+          {
+            "mean_abs": 1.4758809407552083,
+            "max": 116
+          },
+          {
+            "mean_abs": 1.3458353678385417,
+            "max": 147
+          },
+          {
+            "mean_abs": 1.5122884114583333,
+            "max": 171
+          },
+          {
+            "mean_abs": 1.4683939615885417,
+            "max": 180
+          },
+          {
+            "mean_abs": 1.6554209391276042,
+            "max": 203
+          },
+          {
+            "mean_abs": 1.58135986328125,
+            "max": 177
+          },
+          {
+            "mean_abs": 2.0697224934895835,
+            "max": 190
+          }
+        ],
+        "rivaGan": [
+          {
+            "mean_abs": 1.9738667805989583,
+            "max": 3
+          },
+          {
+            "mean_abs": 2.113128662109375,
+            "max": 3
+          },
+          {
+            "mean_abs": 2.2919514973958335,
+            "max": 3
+          },
+          {
+            "mean_abs": 2.1938323974609375,
+            "max": 3
+          },
+          {
+            "mean_abs": 2.0316009521484375,
+            "max": 3
+          },
+          {
+            "mean_abs": 2.166325887044271,
+            "max": 3
+          },
+          {
+            "mean_abs": 2.158564249674479,
+            "max": 3
+          },
+          {
+            "mean_abs": 2.160771687825521,
+            "max": 3
+          },
+          {
+            "mean_abs": 2.076054890950521,
+            "max": 3
+          },
+          {
+            "mean_abs": 2.089696248372396,
+            "max": 3
+          },
+          {
+            "mean_abs": 2.3149007161458335,
+            "max": 3
+          },
+          {
+            "mean_abs": 2.1850687662760415,
+            "max": 3
+          }
+        ]
+      },
+      "fp": {
+        "dwtDctSvd": [
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          }
+        ],
+        "rivaGan": [
+          {
+            "detected": false,
+            "agree": 0.406
+          },
+          {
+            "detected": false,
+            "agree": 0.531
+          },
+          {
+            "detected": false,
+            "agree": 0.438
+          },
+          {
+            "detected": false,
+            "agree": 0.406
+          },
+          {
+            "detected": false,
+            "agree": 0.594
+          },
+          {
+            "detected": false,
+            "agree": 0.469
+          },
+          {
+            "detected": false,
+            "agree": 0.625
+          },
+          {
+            "detected": false,
+            "agree": 0.438
+          },
+          {
+            "detected": false,
+            "agree": 0.562
+          },
+          {
+            "detected": false,
+            "agree": 0.406
+          },
+          {
+            "detected": false,
+            "agree": 0.594
+          },
+          {
+            "detected": false,
+            "agree": 0.25
+          }
+        ]
+      },
+      "copy_attack": {
+        "dwtDctSvd": [
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          }
+        ],
+        "rivaGan": [
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          },
+          {
+            "detected": false
+          }
+        ]
+      }
+    }
+  }
+}
