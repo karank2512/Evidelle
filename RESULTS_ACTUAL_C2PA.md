@@ -52,10 +52,30 @@ Sources: https://github.com/c2pa-org/public-testfiles (`legacy/1.4/image/jpeg`, 
 - **Recorded-run environment.** The run recorded in `results/actual_c2pa/actual_c2pa_results.json` with SHA-256 `8a09427f0fff7889868ea6c1152fb2c5088187f3fb31b680eb3e0ef970967fe1` used macOS 27.2.1 and libjpeg-turbo 3.1.0. These two versions describe that recorded run only. They are not stored in the results file and are not re-detected when this page is regenerated, so they say nothing about the machine that regenerates the page or about any other run.
 - **Scope.** Other tools, versions and platform pipelines were not tested. All results are for c2patool 0.27.23 on JPEG and PNG only.
 
-## Timestamps (not examined)
+## Timestamps
 
-- The official samples report `timeStamp.validated` and `timeStamp.trusted` even with no trust anchors configured and network access denied. Two things were not examined: what c2patool 0.27.23 treats as a trusted timestamp authority, and timestamp-authority revocation.
-- The synthetic signatures carry no timestamp. Their `Valid` and `Trusted` states depend on the test signing certificate being inside its validity period when validated. It expires on 2030-08-26, and results after that date may differ.
+Examined 2026-11-28 (the earlier "not examined" note is resolved):
+
+- The official Truepic sample reports `timeStamp.validated` and `timeStamp.trusted` with no trust
+  anchors configured and network access denied, because **the signing trust anchors double as
+  timestamp-authority anchors** in c2pa-rs/c2patool, and its embedded default anchor set is the
+  legacy (interim) collection. `c2patool init trust --legacy` fetches only a signing list
+  (27 CAs) plus an EKU store — there is no separate TSA file. The sample's
+  "Truepic Lens Time-Stamping Authority" chains to `CN=RootCA, OU=Lens, O=Truepic`, which is on
+  that interim list.
+- The published conformance `C2PA-TSA-TRUST-LIST.pem` (24 authorities, pinned in `web/trust/`) is
+  the other policy: Google, DigiCert, SSL.com, Samsung and friends. That same sample's timestamp
+  also validates as trusted under the conformance list in the browser — its "Truepic Lens
+  Time-Stamping Authority" end-entity chains to a conformance TSA root even though the legacy
+  `RootCA` is the entry on the interim signing list.
+- The web app mirrors this structure: the official pass uses the conformance signing + TSA lists;
+  the interim pass uses the interim list for **both** signer and timestamp anchors — matching
+  c2patool's legacy mode. The same Truepic sample reports `timeStamp.trusted` in the browser.
+- Still not examined / not performed: timestamp-authority **revocation** (OCSP stays off), and any
+  behavior of a TSA that is on neither list.
+- The synthetic signatures carry no timestamp. Their `Valid` and `Trusted` states depend on the
+  test signing certificate being inside its validity period when validated. It expires on
+  2030-08-26, and results after that date may differ.
 
 ## 3. What each state supports
 

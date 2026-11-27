@@ -44,22 +44,26 @@ async function ensureEngine() {
     status('Loading the pinned verifier (about 12 MB, once per visit, from this site’s own files)…');
     const mod = await import('./vendor/c2pa-web/inline.js');
     const c2pa = await mod.createC2pa();
-    /* Policy "official": the C2PA conformance trust list + TSA list.
+    /* Policy "official": the C2PA conformance trust list + its TSA list.
        Policy "interim": the frozen CAI interim list (what verify.contentauthenticity.org
-       uses) + its EKU store, with the same pinned TSA list. Two passes keep the lists
-       distinguished, as the interim list's own header asks. */
+       uses) + its EKU store, with the interim list itself as the TSA anchors — matching
+       c2patool's legacy mode, where the signing anchor set doubles as timestamp-authority
+       anchors (why c2patool reports timeStamp.trusted for e.g. the Truepic sample with no
+       configured anchors). Two passes keep the lists distinguished, as the interim list's
+       own header asks. */
     const base = mod.createVerifySettings({ remoteManifestFetch: false, ocspFetch: false });
-    const tsa = mod.createTsaTrustSettings({ trustAnchors: TRUST.TSA_TRUST_LIST.pem });
     const ctxOfficial = new mod.Context(mod.mergeSettings(
       mod.createTrustSettings({ trustAnchors: TRUST.MANIFEST_TRUST_LIST.pem }),
-      tsa, base,
+      mod.createTsaTrustSettings({ trustAnchors: TRUST.TSA_TRUST_LIST.pem }),
+      base,
     ));
     const ctxInterim = new mod.Context(mod.mergeSettings(
       mod.createTrustSettings({
         trustAnchors: TRUST.INTERIM_TRUST_LIST.pem,
         trustConfig: TRUST_TEXTS.INTERIM_EKU_STORE,
       }),
-      tsa, base,
+      mod.createTsaTrustSettings({ trustAnchors: TRUST.INTERIM_TRUST_LIST.pem }),
+      base,
     ));
     status('Verifier ready. Files are checked on this device; nothing is uploaded.');
     return { mod, c2pa, ctxOfficial, ctxInterim };
@@ -727,10 +731,11 @@ function trustCard(c) {
     el('tbody', null, rows)));
   const tl = TRUST.MANIFEST_TRUST_LIST; const ti = TRUST.INTERIM_TRUST_LIST; const tsa = TRUST.TSA_TRUST_LIST;
   card.appendChild(el('p', { class: 'note', text: 'Pinned trust sources: official conformance list ('
-    + tl.certificates + ' CAs, SHA-256 ' + tl.sha256.slice(0, 16) + '…, ' + tl.fetched + ', github.com/c2pa-org/conformance-public); '
+    + tl.certificates + ' CAs, SHA-256 ' + tl.sha256.slice(0, 16) + '…, ' + tl.fetched + ', github.com/c2pa-org/conformance-public) '
+    + '+ its TSA list (' + tsa.certificates + ' authorities); '
     + 'frozen CAI interim list (' + ti.certificates + ' CAs, SHA-256 ' + ti.sha256.slice(0, 16) + '…, ' + ti.fetched
-    + ', contentcredentials.org/trust/anchors.pem); TSA list (' + tsa.certificates + ' authorities). '
-    + 'Nothing is fetched at check time.' }));
+    + ', contentcredentials.org/trust/anchors.pem), which also serves as the timestamp-authority anchors for that pass — '
+    + 'as c2patool’s legacy mode does. Nothing is fetched at check time.' }));
   card.appendChild(checked());
   return card;
 }
