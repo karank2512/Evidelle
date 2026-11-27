@@ -1,0 +1,7 @@
+{
+  "trust/C2PA-TRUST-LIST.pem": "62673a9e68e30f953eda65b4171e980ee111e1f12385989b1230fdfe787bfae8",
+  "trust/C2PA-TSA-TRUST-LIST.pem": "eca8347ee71e31d226e00c85b15aca356116fefe6c26ed8c0ee1f954115b1990",
+  "trust/C2PA-INTERIM-TRUST-LIST.pem": "db57e50b9bd4e4c786cbb91f38fd85e2af6a9d5412438a8cddcc42688df07ae5",
+  "trust/c2pa-interim-eku-store.cfg": "1044c30a906b0c9cbe28b4a4c0002ca56a718f0ae22b9af83238543a07d0e718",
+  "detector-model.fp16.onnx": "78cc1dc6c49a3a5d68fbc8d160e2799ec21837d12662d5b3f9d978c7bb44c52f"
+}

@@ -1,0 +1,101 @@
+name: trust-refresh
+
+# Weekly: re-fetch the pinned C2PA trust lists from their canonical URLs, and if any
+# changed, regenerate trust-anchors.js, update web/pins.json and web/PINS.md, and open
+# a PR on main for review. The interim list is frozen upstream, so changes there are
+# notable. The EKU store (c2pa-interim-eku-store.cfg) is NOT refreshed — it comes from
+# c2patool's bundled config; the PR body calls this out for manual re-check.
+
+on:
+  schedule:
+    - cron: '23 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch canonical trust lists
+        run: |
+          set -e
+          mkdir -p /tmp/trust
+          curl -fsSL --retry 3 \
+            https://raw.githubusercontent.com/c2pa-org/conformance-public/main/trust-list/C2PA-TRUST-LIST.pem \
+            -o /tmp/trust/C2PA-TRUST-LIST.pem
+          curl -fsSL --retry 3 \
+            https://raw.githubusercontent.com/c2pa-org/conformance-public/main/trust-list/C2PA-TSA-TRUST-LIST.pem \
+            -o /tmp/trust/C2PA-TSA-TRUST-LIST.pem
+          curl -fsSL --retry 3 \
+            https://contentcredentials.org/trust/anchors.pem \
+            -o /tmp/trust/C2PA-INTERIM-TRUST-LIST.pem
+          for f in /tmp/trust/*.pem; do
+            grep -q "BEGIN CERTIFICATE" "$f" || { echo "fetched file is not PEM: $f"; exit 1; }
+          done
+
+      - name: Apply updates if upstream changed
+        id: upd
+        run: |
+          set -e
+          changed=0
+          for f in C2PA-TRUST-LIST.pem C2PA-TSA-TRUST-LIST.pem C2PA-INTERIM-TRUST-LIST.pem; do
+            if ! cmp -s "/tmp/trust/$f" "web/trust/$f"; then
+              old=$(sha256sum "web/trust/$f" | cut -d' ' -f1)
+              new=$(sha256sum "/tmp/trust/$f" | cut -d' ' -f1)
+              cp "/tmp/trust/$f" "web/trust/$f"
+              sed -i "s/$old/$new/g" web/PINS.md
+              changed=1
+              echo "$f: $old -> $new" >> /tmp/trust_changes.txt
+            fi
+          done
+          echo "changed=$changed" >> "$GITHUB_OUTPUT"
+
+      - name: Regenerate trust module and pins
+        if: steps.upd.outputs.changed == '1'
+        run: |
+          python3 web/build_trust_module.py --fetched "$(date +%F)"
+          python3 - <<'PY'
+          import hashlib, json, pathlib
+          p = pathlib.Path('web/pins.json')
+          pins = json.loads(p.read_text())
+          for rel in ['trust/C2PA-TRUST-LIST.pem', 'trust/C2PA-TSA-TRUST-LIST.pem',
+                      'trust/C2PA-INTERIM-TRUST-LIST.pem']:
+              pins[rel] = hashlib.sha256(pathlib.Path('web', rel).read_bytes()).hexdigest()
+          p.write_text(json.dumps(pins, indent=2) + '\n')
+          PY
+          python3 web/check_web.py
+
+      - name: Open a pull request
+        if: steps.upd.outputs.changed == '1'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          branch="trust-refresh/$(date +%F)"
+          git checkout -b "$branch"
+          git add web/trust web/trust-anchors.js web/pins.json web/PINS.md
+          git -c user.name="github-actions" -c user.email="github-actions@users.noreply.github.com" \
+            commit -m "Re-pin C2PA trust lists ($(date +%F))"
+          git push origin "$branch"
+          {
+            echo "The canonical C2PA trust lists changed upstream. This PR re-pins them:"
+            echo ""
+            cat /tmp/trust_changes.txt 2>/dev/null || echo "(see diff)"
+            echo ""
+            echo "Done by the scheduled trust-refresh workflow: PEMs re-fetched from the canonical"
+            echo "URLs in web/build_trust_module.py, trust-anchors.js regenerated, web/pins.json and"
+            echo "web/PINS.md updated, check_web.py passing."
+            echo ""
+            echo "Not refreshed (manual check if this PR touches the interim list):"
+            echo "trust/c2pa-interim-eku-store.cfg comes from c2patool's bundled config — re-run"
+            echo "\`c2patool init trust --legacy\` with the pinned binary if anchors.pem changed."
+            echo ""
+            echo "Review the diff before merging: a changed trust list changes what \"Trusted\" means"
+            echo "in the app."
+          } > /tmp/pr_body.txt
+          gh pr create --base main --title "Trust list re-pin $(date +%F)" --body-file /tmp/pr_body.txt

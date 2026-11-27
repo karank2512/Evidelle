@@ -62,6 +62,7 @@ web/vendor/onnxruntime-web/ort.wasm.min.mjs
 web/vendor/onnxruntime-web/ort-wasm-simd-threaded.mjs
 web/vendor/onnxruntime-web/ort-wasm-simd-threaded.wasm
 web/detector-model.fp16.onnx
+web/pins.json
 detector_eval/export_onnx.py
 RESULTS_WATERMARK.md
 RESULTS_DETECTOR.md

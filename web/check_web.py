@@ -34,7 +34,7 @@ def sha256(p):
 def main():
     required = [
         "index.html", "styles.css", "app.js", "sw.js", "manifest.webmanifest",
-        "icon-192.png", "icon-512.png", "trust-anchors.js",
+        "icon-192.png", "icon-512.png", "trust-anchors.js", "pins.json",
         "vendor/c2pa-web/inline.js", "vendor/c2pa-web/builder-CaTgrAW1.js", "vendor/c2pa-web/c2pa_worker.js",
         "vendor/c2pa-utilities/index.js", "vendor/c2pa-utilities/context.js", "vendor/c2pa-utilities/settings.js",
         "vendor/c2pa-utilities/fetchWithRetry.js", "vendor/c2pa-utilities/caseConversion.js",
@@ -50,6 +50,10 @@ def main():
     for rel in required:
         check("exists " + rel, (HERE / rel).is_file())
 
+    # recorded hashes — web/pins.json is the single source of truth (the trust-refresh
+    # workflow updates it when upstream lists change)
+    pins = json.loads((HERE / "pins.json").read_text())
+
     # trust module regenerates identically
     r = subprocess.run([sys.executable, str(HERE / "build_trust_module.py"), "--fetched", "2026-11-27"],
                        capture_output=True, text=True, cwd=str(HERE))
@@ -57,17 +61,8 @@ def main():
     if r.returncode == 0:
         # --fetched fixes the recorded date so regeneration is reproducible for this pin
         check("trust-anchors.js records pinned hashes",
-              '"sha256": "62673a9e68e30f953eda65b4171e980ee111e1f12385989b1230fdfe787bfae8"'
+              '"sha256": "' + pins["trust/C2PA-TRUST-LIST.pem"] + '"'
               in (HERE / "trust-anchors.js").read_text())
-
-    # recorded PEM hashes (PINS.md)
-    pins = {
-        "trust/C2PA-TRUST-LIST.pem": "62673a9e68e30f953eda65b4171e980ee111e1f12385989b1230fdfe787bfae8",
-        "trust/C2PA-TSA-TRUST-LIST.pem": "eca8347ee71e31d226e00c85b15aca356116fefe6c26ed8c0ee1f954115b1990",
-        "trust/C2PA-INTERIM-TRUST-LIST.pem": "db57e50b9bd4e4c786cbb91f38fd85e2af6a9d5412438a8cddcc42688df07ae5",
-        "trust/c2pa-interim-eku-store.cfg": "1044c30a906b0c9cbe28b4a4c0002ca56a718f0ae22b9af83238543a07d0e718",
-    }
-    pins["detector-model.fp16.onnx"] = "78cc1dc6c49a3a5d68fbc8d160e2799ec21837d12662d5b3f9d978c7bb44c52f"
     for rel, want in pins.items():
         p = HERE / rel
         check("sha256 " + rel, p.is_file() and sha256(p) == want)
