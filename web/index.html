@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!--
+  CSP note: connect-src 'none' means this page can make no network requests after it
+  loads. Every script and the verifier are vendored files under vendor/; the trust
+  lists are pinned inside trust-anchors.js. Verification runs entirely on-device.
+  Check DevTools > Network: after the initial page load there are zero requests.
+-->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self' blob:; connect-src 'none'; img-src 'self' blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#f6f6f3" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#161615" media="(prefers-color-scheme: dark)">
+<title>Evidelle · C2PA evidence check</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="page">
+    <p class="eyebrow">On-device check · nothing is uploaded</p>
+    <h1>C2PA evidence check</h1>
+    <p class="lead">Pick a JPEG, PNG or WebP image. This page checks whether it carries a C2PA Content Credential that is
+      intact for these exact bytes, who signed it, and whether the signer chains to one of the pinned C2PA trust
+      lists. It also says what stays unknown.</p>
+    <ul class="rules">
+      <li>This tool does not say whether an image is real or fake, and it is not an AI-probability score.</li>
+      <li><strong>Trusted</strong> means the signer chains to the official C2PA conformance trust list, or to the
+        frozen CAI interim list that the C2PA Verify site uses — both pinned in this app with source and SHA-256 in
+        the evidence section. It never means a claim is true.</li>
+      <li>Declared claims, such as “captured by a camera”, are the signer’s statements, not proven origin.</li>
+      <li>A missing credential is not evidence either way: many tools never add one and some platforms strip them.</li>
+      <li>Certificate revocation status and remote (cloud) manifests are not fetched — the page makes no network
+        requests at all.</li>
+    </ul>
+    <div class="banner" role="note">
+      <strong>Everything happens on this device.</strong>
+      The file is read by your browser and verified locally by the pinned C2PA WebAssembly verifier. There is no upload
+      and no analytics: this page declares <code>connect-src 'none'</code>, so after loading it can make no network
+      request. Airplane mode works.
+    </div>
+  </header>
+
+  <main>
+    <section class="pick" id="pick">
+      <label class="drop" id="drop">
+        <input type="file" id="file-input" accept="image/jpeg,image/png,image/webp" multiple>
+        <span class="drop-title">Choose images or drop them here</span>
+        <span class="drop-sub">JPEG, PNG or WebP · up to 25 MB each · checked one by one on this device</span>
+      </label>
+      <p class="note" id="engine-status" role="status"></p>
+    </section>
+
+    <section id="files" hidden>
+      <nav class="cases" aria-label="Checked files">
+        <ul class="case-list" id="case-list"></ul>
+      </nav>
+      <article class="case" id="case"></article>
+    </section>
+  </main>
+
+  <footer class="page" id="about"></footer>
+</div>
+<noscript><p class="banner">This check needs JavaScript. Verification runs entirely in your browser; nothing is
+  uploaded either way.</p></noscript>
+<script type="module" src="app.js"></script>
+</body>
+</html>

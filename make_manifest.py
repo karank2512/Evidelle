@@ -1,19 +1,25 @@
 #!/usr/bin/env python3
-"""Write MANIFEST.md: environment, parameters, public test-key ids, artifact hashes and
-source/document hashes for the committed run. Run after run_experiment.py."""
+"""Write MANIFEST.md: environment, parameters, public test-key ids, artifact hashes, the external inputs of the
+actual-C2PA run, and the SHA-256 of every file listed in PRODUCT_ALLOWLIST.txt. Run after run_experiment.py."""
 
 import hashlib
 import json
 import os
+import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-TRACKED = ["README.md", "RESULTS.md", "run_experiment.py", "make_manifest.py", "results/results.json",
-           "authexp/__init__.py", "authexp/prng.py", "authexp/imageio.py", "authexp/synth.py", "authexp/keys.py",
-           "authexp/manifest.py", "authexp/watermark.py", "authexp/transforms.py", "authexp/evidence.py",
-           "tests/test_core.py", "docs/ACTUAL_SIGNAL_ROUTES.md", "docs/Media authenticity and deepfake detection.md",
-           "docs/Media authenticity and deepfake detection source ledger.md",
-           "actual_c2pa/run_actual_c2pa.py", "actual_c2pa/settings/offline.toml", "tests/test_actual_c2pa.py",
-           "RESULTS_ACTUAL_C2PA.md", "results/actual_c2pa/actual_c2pa_results.json"]
+ALLOWLIST = "PRODUCT_ALLOWLIST.txt"
+
+
+def product_files():
+    """Paths listed in PRODUCT_ALLOWLIST.txt, in order. Blank lines and lines starting with '#' are ignored.
+    Exits with an error if a listed file is missing."""
+    with open(os.path.join(HERE, ALLOWLIST)) as f:
+        paths = [line.strip() for line in f if line.strip() and not line.lstrip().startswith("#")]
+    missing = [p for p in paths if not os.path.isfile(os.path.join(HERE, p))]
+    if missing:
+        sys.exit("files listed in %s are missing: %s" % (ALLOWLIST, ", ".join(missing)))
+    return paths
 
 
 def sha(path):
@@ -55,10 +61,10 @@ def main():
                   "", "| Sample | Source | SHA-256 | Git blob matches GitHub |", "|---|---|---|---|"]
         for e in a["official_samples"]:
             lines.append("| %s | %s | `%s` | %s |" % (e["file"], e["source"], e["sha256"], e.get("git_blob_sha_matches_github", "n/a (bundled)")))
-    lines += ["", "## Committed files (SHA-256 at the time this manifest was generated)", "",
+    lines += ["", "## Product files (listed in %s; SHA-256 at the time this manifest was generated)" % ALLOWLIST, "",
               "| File | SHA-256 |", "|---|---|"]
-    for p in TRACKED:
-        if os.path.exists(os.path.join(HERE, p)):
+    for p in product_files():
+        if p != "MANIFEST.md":
             lines.append("| %s | `%s` |" % (p, sha(p)))
     lines.append("")
     lines.append("MANIFEST.md itself is not listed because it cannot contain its own hash.")

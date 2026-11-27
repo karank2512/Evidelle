@@ -17,8 +17,9 @@ whether a scene is real.
 
 Usage (from the repository root):  python3 actual_c2pa/run_actual_c2pa.py
 Requires: the extracted c2patool folder (default tools/c2patool-dl/extracted/c2patool, or set
-AUTHEXP_C2PATOOL_DIR), the official sample files in samples/official/, libjpeg-turbo (cjpeg,
-djpeg, jpegtran) and macOS sandbox-exec. Optionally macOS sips.
+AUTHEXP_C2PATOOL_DIR), the official sample files (default samples/official/, or set
+AUTHEXP_OFFICIAL_DIR), libjpeg-turbo (cjpeg, djpeg, jpegtran) and macOS sandbox-exec. Optionally
+macOS sips. An empty variable counts as unset. missing_prerequisites() names whatever is absent.
 """
 
 import hashlib
@@ -36,10 +37,10 @@ sys.path.insert(0, HERE)
 from authexp import synth  # noqa: E402
 from authexp.imageio import PNG_SIGNATURE, decode_png, write_png, write_ppm  # noqa: E402
 
-TOOL_DIR = os.environ.get("AUTHEXP_C2PATOOL_DIR", os.path.join(HERE, "tools", "c2patool-dl", "extracted", "c2patool"))
+TOOL_DIR = os.environ.get("AUTHEXP_C2PATOOL_DIR") or os.path.join(HERE, "tools", "c2patool-dl", "extracted", "c2patool")
 TOOL = os.path.join(TOOL_DIR, "c2patool")
 TEST_CREDS = os.path.join(TOOL_DIR, "sample")
-OFFICIAL = os.path.join(HERE, "samples", "official")
+OFFICIAL = os.environ.get("AUTHEXP_OFFICIAL_DIR") or os.path.join(HERE, "samples", "official")
 SETTINGS = os.path.join(HERE, "actual_c2pa", "settings", "offline.toml")
 OUT_DIR = os.path.join(HERE, "results", "actual_c2pa")
 WORK = os.path.join(OUT_DIR, "work")
@@ -102,6 +103,28 @@ def rel(path):
     return os.path.relpath(path, HERE)
 
 
+def missing_prerequisites(official=True, jpeg_tools=True):
+    """What an offline run needs but cannot find, as short descriptions; an empty list when nothing is missing.
+
+    The c2patool folder can be set with AUTHEXP_C2PATOOL_DIR and the official sample folder with AUTHEXP_OFFICIAL_DIR.
+    """
+    missing = []
+    if not os.path.isfile(TOOL):
+        missing.append("c2patool binary %s (set AUTHEXP_C2PATOOL_DIR to the extracted c2patool folder)" % rel(TOOL))
+    elif not os.path.isdir(TEST_CREDS):
+        missing.append("c2patool sample/ folder %s (part of the c2patool release)" % rel(TEST_CREDS))
+    if shutil.which("sandbox-exec") is None:
+        missing.append("macOS sandbox-exec")
+    if jpeg_tools:
+        missing.extend("libjpeg-turbo %s" % t for t in ("cjpeg", "djpeg", "jpegtran") if shutil.which(t) is None)
+    if official:
+        absent = [name for name, _blob, _expected in OFFICIAL_SAMPLES if not os.path.isfile(os.path.join(OFFICIAL, name))]
+        if absent:
+            missing.append("%d of the %d official sample files in %s (set AUTHEXP_OFFICIAL_DIR to their folder)"
+                           % (len(absent), len(OFFICIAL_SAMPLES), rel(OFFICIAL)))
+    return missing
+
+
 def run_tool(args, cwd):
     cmd = ["sandbox-exec", "-p", SANDBOX_PROFILE, TOOL, "--settings", SETTINGS] + args
     res = subprocess.run(cmd, cwd=cwd, capture_output=True, timeout=180)
@@ -155,7 +178,7 @@ def validate(path, cwd, trust):
     return summarize_report(*run_tool(args, cwd))
 
 
-def sign(src, dst, title, source_type):
+def sign(src, dst, title, source_type, work=WORK):
     manifest = {
         "claim_generator_info": [{"name": "authexp-actual-c2pa", "version": "0.1"}],
         "title": title,
@@ -165,11 +188,11 @@ def sign(src, dst, title, source_type):
         "assertions": [{"label": "c2pa.actions", "data": {"actions": [
             {"action": "c2pa.created", "digitalSourceType": IPTC + source_type}]}}],
     }
-    mpath = os.path.join(WORK, "manifest_%s.json" % title.replace(" ", "_"))
+    mpath = os.path.join(work, "manifest_%s.json" % title.replace(" ", "_"))
     with open(mpath, "w") as f:
         json.dump(manifest, f)
-    rc, _out, err = run_tool([os.path.relpath(src, WORK), "-m", os.path.relpath(mpath, WORK),
-                              "-o", os.path.relpath(dst, WORK), "-f"], WORK)
+    rc, _out, err = run_tool([os.path.relpath(src, work), "-m", os.path.relpath(mpath, work),
+                              "-o", os.path.relpath(dst, work), "-f"], work)
     if rc != 0:
         raise RuntimeError("signing failed: " + _sanitize(err)[:300])
 
@@ -268,11 +291,12 @@ def cert_dates(pem_path):
     return [l.strip() for l in res.stdout.decode().splitlines()]
 
 
-def main():
-    for need in (TOOL, SETTINGS):
-        if not os.path.exists(need):
-            sys.exit("missing: %s" % rel(need))
-    os.makedirs(WORK, exist_ok=True)
+def collect(work=WORK):
+    """Run every recorded case offline and return the results (writes only into `work`)."""
+    missing = missing_prerequisites() + ([] if os.path.exists(SETTINGS) else ["settings file %s" % rel(SETTINGS)])
+    if missing:
+        sys.exit("missing: " + "; ".join(missing))
+    os.makedirs(work, exist_ok=True)
     results = {"tool": TOOL_SOURCE, "environment": {}, "offline_controls": {
         "sandbox_profile": SANDBOX_PROFILE, "settings_file": rel(SETTINGS),
         "remote_manifest_fetch": False, "ocsp_fetch": False, "allowed_network_hosts": [],
@@ -307,13 +331,13 @@ def main():
     def record(case_id, description, path):
         cases.append({"id": case_id, "description": description, "file": rel(path),
                       "c2pa_chunk_present": png_has_chunk(path) if path.endswith(".png") else None,
-                      "no_trust_anchors": validate(path, WORK, trust=False),
-                      "test_trust_anchors": validate(path, WORK, trust=True)})
+                      "no_trust_anchors": validate(path, work, trust=False),
+                      "test_trust_anchors": validate(path, work, trust=True)})
 
-    w = lambda n: os.path.join(WORK, n)  # noqa: E731
+    w = lambda n: os.path.join(work, n)  # noqa: E731
     write_png(w("L0.png"), synth.landscape(0))
     write_png(w("S0.png"), synth.shapes(0))
-    sign(w("L0.png"), w("L0_signed.png"), "synthetic landscape 0", "algorithmicMedia")
+    sign(w("L0.png"), w("L0_signed.png"), "synthetic landscape 0", "algorithmicMedia", work=work)
     record("A01_png_signed_intact", "Synthetic landscape signed with TEST credentials, declared algorithmicMedia; unchanged.", w("L0_signed.png"))
     png_recompress(w("L0_signed.png"), w("A02.png"), level=1)
     record("A02_png_lossless_recompress", "Same pixels, IDAT re-compressed (zlib level 1); C2PA chunk kept in place.", w("A02.png"))
@@ -328,14 +352,14 @@ def main():
     if shutil.which("sips"):
         run(["sips", "-s", "format", "png", w("L0_signed.png"), "--out", w("A07.png")])
         record("A07_png_sips_resave", "Signed PNG re-saved as PNG by macOS sips.", w("A07.png"))
-    sign(w("L0.png"), w("L0_false_capture.png"), "synthetic landscape false capture", "digitalCapture")
+    sign(w("L0.png"), w("L0_false_capture.png"), "synthetic landscape false capture", "digitalCapture", work=work)
     record("A08_png_false_capture_claim", "The same synthetic landscape signed with TEST credentials but declared digitalCapture "
            "(a false claim, made deliberately).", w("L0_false_capture.png"))
 
     # JPEG path.
     write_ppm(w("L1.ppm"), synth.landscape(1))
     run(["cjpeg", "-quality", "90", "-outfile", w("L1.jpg"), w("L1.ppm")])
-    sign(w("L1.jpg"), w("L1_signed.jpg"), "synthetic landscape 1 jpeg", "algorithmicMedia")
+    sign(w("L1.jpg"), w("L1_signed.jpg"), "synthetic landscape 1 jpeg", "algorithmicMedia", work=work)
     record("B01_jpeg_signed_intact", "Synthetic landscape JPEG signed with TEST credentials; unchanged.", w("L1_signed.jpg"))
     run(["jpegtran", "-copy", "all", "-optimize", "-outfile", w("B02.jpg"), w("L1_signed.jpg")])
     record("B02_jpeg_lossless_transcode_markers_kept", "jpegtran -copy all -optimize (lossless; all markers copied).", w("B02.jpg"))
@@ -349,9 +373,26 @@ def main():
         record("B05_jpeg_sips_resave_q80", "Signed JPEG re-saved as JPEG (quality 80) by macOS sips.", w("B05.jpg"))
     results["synthetic_cases"] = cases
     results["state_meanings"] = MEANING
+    return results
 
+
+def main():
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--md-only", action="store_true",
+                    help="rebuild RESULTS_ACTUAL_C2PA.md from the committed results JSON without running c2patool")
+    args = ap.parse_args()
+    json_path = os.path.join(OUT_DIR, "actual_c2pa_results.json")
+    if args.md_only:
+        with open(json_path) as f:
+            results = json.load(f)
+        write_md(results, os.path.join(HERE, "RESULTS_ACTUAL_C2PA.md"))
+        print("rebuilt RESULTS_ACTUAL_C2PA.md from", rel(json_path))
+        return
+    results = collect(WORK)
+    official, cases = results["official_samples"], results["synthetic_cases"]
     os.makedirs(OUT_DIR, exist_ok=True)
-    with open(os.path.join(OUT_DIR, "actual_c2pa_results.json"), "w") as f:
+    with open(json_path, "w") as f:
         json.dump(results, f, indent=1, sort_keys=True)
     write_md(results, os.path.join(HERE, "RESULTS_ACTUAL_C2PA.md"))
     for e in official:
@@ -370,6 +411,12 @@ def _codes(s):
     return ", ".join(s.get("failure_codes") or []) or "none"
 
 
+# The OS and libjpeg-turbo versions quoted in write_md() were observed for one recorded run: the run whose results
+# file has this SHA-256. They are not stored in that file, so the page names the file by hash instead of implying
+# anything about the machine that regenerates the page.
+RECORDED_RUN_RESULTS_SHA256 = "8a09427f0fff7889868ea6c1152fb2c5088187f3fb31b680eb3e0ef970967fe1"
+
+
 def write_md(r, path):
     L = []
     a = L.append
@@ -386,6 +433,8 @@ def write_md(r, path):
     a("- *No trust anchors:* nothing is configured as trusted.")
     a("- *Test trust anchors:* the C2PA **test** root bundled with c2patool (FOR TESTING ONLY). \"Trusted\" therefore "
       "means \"chains to the test root\" here, not to any production trust list.")
+    a("- The test signing certificate's private key (`sample/es256_private.key`) is published inside the c2patool release "
+      "zip. Anyone can therefore produce signatures that validate as \"Trusted\" under the test root.")
     a("")
     a("**These states describe signatures, bindings and trust configuration. They are not verdicts on whether a scene "
       "is real.** AI-image detectors, SynthID and production watermarks remain unevaluated.")
@@ -411,10 +460,36 @@ def write_md(r, path):
             c["id"], c["description"], "" if c["c2pa_chunk_present"] is None else c["c2pa_chunk_present"], s["state"],
             _codes(s), c["test_trust_anchors"]["state"], ", ".join(s.get("declared_digital_source_types") or []) or "-"))
     a("")
+    a("**Notes on section 2:**")
+    a("- **A08.** A signature that validates as \"Trusted\" under the public test root can carry a claim we deliberately made "
+      "false. Validation attests the signer and the binding, not the truth of the claim. A08 does **not** show a "
+      "production-trusted signer making a false claim; that case was not evaluated.")
+    tool_version = r["tool"]["version"]
+    a("- **Conversions tested.** Only the listed conversions were tested:")
+    a("  - our PNG chunk edits;")
+    a("  - macOS `sips` re-saves (PNG to PNG; JPEG to JPEG at quality 80);")
+    a("  - libjpeg-turbo: `djpeg` then `cjpeg -quality 75`, `jpegtran -copy all -optimize`, and `jpegtran -copy none`.")
+    a("- **Recorded-run environment.** The run recorded in `results/actual_c2pa/actual_c2pa_results.json` with SHA-256 "
+      "`%s` used macOS 27.2.1 and libjpeg-turbo 3.1.0. These two versions describe that recorded run only. They are "
+      "not stored in the results file and are not re-detected when this page is regenerated, so they say nothing about "
+      "the machine that regenerates the page or about any other run." % RECORDED_RUN_RESULTS_SHA256)
+    a("- **Scope.** Other tools, versions and platform pipelines were not tested. All results are for c2patool %s on JPEG "
+      "and PNG only." % tool_version)
+    a("")
+    a("## Timestamps (not examined)")
+    a("")
+    a("- The official samples report `timeStamp.validated` and `timeStamp.trusted` even with no trust anchors configured and "
+      "network access denied. Two things were not examined: what c2patool %s treats as a trusted timestamp authority, "
+      "and timestamp-authority revocation." % tool_version)
+    a("- The synthetic signatures carry no timestamp. Their `Valid` and `Trusted` states depend on the test signing "
+      "certificate being inside its validity period when validated. It expires on 2030-08-26, and results after that "
+      "date may differ.")
+    a("")
     a("## 3. What each state supports")
     a("")
-    for k, v in r["state_meanings"].items():
-        a("- **%s:** %s" % (k, v))
+    meanings = r["state_meanings"]
+    for k in [s for s in MEANING if s in meanings] + sorted(s for s in meanings if s not in MEANING):
+        a("- **%s:** %s" % (k, meanings[k]))
     a("")
     a("Test signing certificate used for the synthetic cases: %s." % "; ".join(r["environment"]["test_signing_certificate"]))
     with open(path, "w") as f:

@@ -1,0 +1,81 @@
+name: test
+
+on:
+  push:
+    branches: [product, main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  tests:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The pinned c2patool and official test files are not committed (repo rule);
+      # fetch them in CI the same way they were fetched locally and verify the hashes.
+      - name: Fetch and verify c2patool 0.27.23
+        run: |
+          mkdir -p tools/c2patool-dl/extracted
+          curl -fsSL -o tools/c2patool.zip \
+            https://github.com/contentauth/c2pa-rs/releases/download/c2patool-v0.27.23/c2patool-v0.27.23-universal-apple-darwin.zip
+          echo "380647e657ed16bb7e61982bd52f6c0b49a1cd92f09dbef49febd0f4c439a673  tools/c2patool.zip" | shasum -a 256 -c
+          unzip -q tools/c2patool.zip -d tools/c2patool-dl/extracted
+
+      - name: Fetch and verify official C2PA test files
+        run: |
+          mkdir -p samples/official
+          base=https://raw.githubusercontent.com/c2pa-org/public-testfiles/main/legacy/1.4/image/jpeg
+          for f in adobe-20220124-CA adobe-20220124-E-sig-CA adobe-20220124-E-dat-CA adobe-20220124-E-uri-CA truepic-20230212-landscape; do
+            curl -fsSL -o "samples/official/$f.jpg" "$base/$f.jpg"
+          done
+          cat > /tmp/sample_hashes.txt <<'EOF'
+          cafc48c53e651f7ba4622d1f72783827074211e42b9634cc863ec3be3c7651b3  samples/official/adobe-20220124-CA.jpg
+          0d4c2774f1b7e94b9613bb952b0a76b6a178d22ac6d206d257d2af1376cbbff2  samples/official/adobe-20220124-E-sig-CA.jpg
+          dae9d121060cec4b6f27ee8acda85ad461cf75f2261d90b463319b787342d7f9  samples/official/adobe-20220124-E-dat-CA.jpg
+          56014faf6b97532252c9bb90dcf484923a8aa7bba197e84a8555044a35e4f3a6  samples/official/adobe-20220124-E-uri-CA.jpg
+          e9a7d020de9edb1c13602f5e1a42fdb67e6ea1728d7f7d88a316cd2e3ce989c9  samples/official/truepic-20230212-landscape.jpg
+          EOF
+          sed 's/^  *//' /tmp/sample_hashes.txt > /tmp/sample_hashes_clean.txt
+          shasum -a 256 -c /tmp/sample_hashes_clean.txt
+
+      - name: Core test suite (46 tests)
+        env:
+          AUTHEXP_C2PATOOL_DIR: ${{ github.workspace }}/tools/c2patool-dl/extracted/c2patool
+          AUTHEXP_OFFICIAL_DIR: ${{ github.workspace }}/samples/official
+        run: python3 -m unittest discover -s tests -v
+
+      - name: Viewer test suite (24 tests)
+        env:
+          AUTHEXP_C2PATOOL_DIR: ${{ github.workspace }}/tools/c2patool-dl/extracted/c2patool
+          AUTHEXP_OFFICIAL_DIR: ${{ github.workspace }}/samples/official
+        run: |
+          cd viewer
+          python3 -m unittest discover -s tests -v
+
+      - name: Web app checks (pins, trust module, service worker)
+        run: python3 web/check_web.py
+
+      - name: MANIFEST.md is up to date
+        run: |
+          python3 make_manifest.py
+          git diff --exit-code MANIFEST.md
+
+  pages:
+    needs: tests
+    if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/product' || github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web
+      - id: deployment
+        uses: actions/deploy-pages@v4

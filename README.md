@@ -1,11 +1,12 @@
 # Offline authenticity-signal prep: toy mechanisms (synthetic, non-intimate)
 
-> **This repository has two separate parts.**
+> **This repository has three separate parts.**
 >
-> 1. **Toy preparation**: `authexp/`, `run_experiment.py` and [`RESULTS.md`](RESULTS.md). These use a toy signed manifest (not C2PA) and a toy watermark (not SynthID or any production scheme). They are preparation only, and their results do not settle questions about actual signals.
-> 2. **Actual C2PA evaluation**: `actual_c2pa/` and [`RESULTS_ACTUAL_C2PA.md`](RESULTS_ACTUAL_C2PA.md). These run the official `c2patool` offline on official C2PA test files, and on synthetic images signed with c2patool's bundled TEST credentials. See "Actual C2PA evaluation" below.
+> 1. **The web app** (`web/`): a static page that checks JPEG, PNG or WebP images for C2PA Content Credentials **in the browser, on the device** — the file is never uploaded. It reports the same honest labels as the rest of the repo, now against two pinned production trust lists. See "The web app" below and [`web/README.md`](web/README.md).
+> 2. **Toy preparation**: `authexp/`, `run_experiment.py` and [`RESULTS.md`](RESULTS.md). These use a toy signed manifest (not C2PA) and a toy watermark (not SynthID or any production scheme). They are preparation only, and their results do not settle questions about actual signals.
+> 3. **Actual C2PA evaluation**: `actual_c2pa/` and [`RESULTS_ACTUAL_C2PA.md`](RESULTS_ACTUAL_C2PA.md). These run the official `c2patool` offline on official C2PA test files, and on synthetic images signed with c2patool's bundled TEST credentials. See "Actual C2PA evaluation" below.
 >
-> **Still unevaluated:** production watermarks, SynthID and AI-image detectors. [`docs/ACTUAL_SIGNAL_ROUTES.md`](docs/ACTUAL_SIGNAL_ROUTES.md) lists the smallest real route for each, with the decision it needs, its source, setup and cost, and what stays unevaluated if it is skipped.
+> **Still unevaluated:** production watermarks, SynthID and AI-image detectors. See "Other actual signals (not evaluated)" below.
 
 A small, bounded, offline preparation exercise. Using toy mechanisms, it shows what three kinds of signal can and cannot establish about an image:
 - provenance (a signed manifest);
@@ -14,7 +15,7 @@ A small, bounded, offline preparation exercise. Using toy mechanisms, it shows w
 
 It also shows where each one fails, and where the honest answer is to abstain.
 
-It accompanies the research report in [`docs/`](docs/). The report reviews public evidence on telling whether social-media photos and videos are AI-generated. This repository adds a reproducible, hands-on illustration of the report's main distinctions. It does not attempt to estimate real-world performance.
+It is a reproducible, hands-on illustration of these distinctions. It does not attempt to estimate real-world performance.
 
 ## Scope and safety
 
@@ -23,11 +24,11 @@ It accompanies the research report in [`docs/`](docs/). The report reviews publi
 - **Toy schemes, clearly labelled:**
   - The provenance manifest (`authexp/manifest.py`) is a toy format. It is **not C2PA** and implies nothing about C2PA conformance.
   - The watermark (`authexp/watermark.py`) is a toy keyed spread-spectrum scheme. It is **not SynthID** or any production watermark, and its robustness numbers do not describe production systems.
-- **Unevaluated:**
+- **Unevaluated in the toy part:**
   - **AI-image detectors.** None was available offline, so no detector scores were produced or estimated.
-  - **C2PA verification.** No C2PA tool was installed.
+  - **C2PA verification.** The toy run used no C2PA tool. Actual C2PA validation is the separate part described under "Actual C2PA evaluation" below.
 - **Test keys are not secret.** The Ed25519 keys are derived from public labels so the run is reproducible. Do not reuse them.
-- **Not legal advice and not a product.** There is no real-user pilot, outreach or automatic reporting.
+- **Not legal advice, and not a verification service.** No real users or outside parties were involved, and nothing is reported or shared automatically.
 
 ## Requirements
 
@@ -43,11 +44,29 @@ No packages are installed and no network access is needed.
 ## Run
 
 ```sh
-python3 -m unittest discover -s tests -v   # 33 tests (actual-C2PA integration tests skip if c2patool is absent)
+python3 -m unittest discover -s tests -v   # 46 tests; the 8 that run c2patool skip, naming what is missing
 python3 run_experiment.py                  # full run (about 1 minute); writes results/results.json and RESULTS.md
 python3 run_experiment.py --quick          # fast smoke run; writes results/results_quick.json
-python3 make_manifest.py                   # writes MANIFEST.md (environment, parameters, hashes)
+python3 make_manifest.py                   # writes MANIFEST.md (environment, parameters, hashes of the product files)
 ```
+
+The 8 tests that run c2patool need the extracted c2patool 0.27.23 folder (default `tools/c2patool-dl/extracted/c2patool`, or set `AUTHEXP_C2PATOOL_DIR`), macOS `sandbox-exec`, and, for 5 of them, the five official test files (default `samples/official/`, or set `AUTHEXP_OFFICIAL_DIR`) and libjpeg-turbo `cjpeg`/`djpeg`/`jpegtran`. None of these is in the repository (see "Actual C2PA evaluation" below). When something is missing, those tests are skipped and the skip message names it. To run them with the folders kept elsewhere:
+
+```sh
+AUTHEXP_C2PATOOL_DIR=/path/to/c2patool AUTHEXP_OFFICIAL_DIR=/path/to/official-samples python3 -m unittest discover -s tests -v
+```
+
+An empty `AUTHEXP_C2PATOOL_DIR` or `AUTHEXP_OFFICIAL_DIR` counts as unset. With `EVIDELLE_KEEP_TEST_FILES=1`, the tests in `tests/test_actual_c2pa.py` and `tests/test_actual_c2pa_regression.py` delete nothing: every temporary folder they create is left in place. `tests/test_core.py` does not honour this variable; it and the experiment's helpers it calls use temporary folders that Python removes automatically.
+
+The product consists of exactly the files listed in [`PRODUCT_ALLOWLIST.txt`](PRODUCT_ALLOWLIST.txt). `MANIFEST.md` records their hashes.
+
+## The web app
+
+`web/` is the usable tool: a static page that checks JPEG, PNG or WebP images (up to 25 MB) for C2PA Content Credentials **entirely in the browser**. The verification runs in a pinned copy of the official `@contentauth/c2pa-web` WebAssembly build, vendored under `web/vendor/`; the file never leaves the device, and the page's `connect-src 'none'` policy makes a network request impossible after loading. It works on phones and installs as a PWA, after which it also works fully offline.
+
+It reports the same fixed label set as the repo — **Intact · Doesn't match · Fails validation · No credential · Unknown** — and never a real-or-fake verdict. Trust is checked against two pinned lists fetched once and recorded in [`web/PINS.md`](web/PINS.md): the official C2PA conformance list and the frozen CAI interim list (what verify.contentauthenticity.org uses), shown as separate results. Files signed with the public C2PA test credential are labelled "TEST credential" — its private key is published, so it proves a valid signature only.
+
+To run locally: `cd web && python3 -m http.server 8077`. `python3 web/check_web.py` verifies the pins, the regenerated trust module and the service-worker's asset list without a browser.
 
 ## What was tested
 
@@ -116,7 +135,7 @@ Each of these shows a signal failing in a specific, reproducible way:
 
 ## Actual C2PA evaluation (official c2patool; offline)
 
-This part used one narrowly approved download: the official C2PA command-line tool, plus a few official test files. It is kept separate from the toy preparation. Full tables are in [`RESULTS_ACTUAL_C2PA.md`](RESULTS_ACTUAL_C2PA.md), and machine-readable results are in [`results/actual_c2pa/actual_c2pa_results.json`](results/actual_c2pa/actual_c2pa_results.json).
+This part uses the official C2PA command-line tool and a few official C2PA test files, run offline. It is kept separate from the toy preparation. Full tables are in [`RESULTS_ACTUAL_C2PA.md`](RESULTS_ACTUAL_C2PA.md), and machine-readable results are in [`results/actual_c2pa/actual_c2pa_results.json`](results/actual_c2pa/actual_c2pa_results.json).
 
 **Inputs.** These are not committed; obtain them from the sources below and check the hashes.
 - **Tool.** `c2patool` v0.27.23, macOS universal build, from https://github.com/contentauth/c2pa-rs/releases/tag/c2patool-v0.27.23.
@@ -124,8 +143,10 @@ This part used one narrowly approved download: the official C2PA command-line to
   - The licence is MIT OR Apache-2.0.
   - The binary is ad-hoc signed only (no Developer ID or notarization). It was run from the experiment folder and never added to `PATH` or installed system-wide.
   - Extract it to `tools/c2patool-dl/extracted/`, or set `AUTHEXP_C2PATOOL_DIR`.
-- **Official test files** (CC-BY-SA-4.0). Five files from https://github.com/c2pa-org/public-testfiles under `legacy/1.4/image/jpeg/`: `adobe-20220124-CA.jpg`, `-E-sig-CA.jpg`, `-E-dat-CA.jpg`, `-E-uri-CA.jpg` and `truepic-20230212-landscape.jpg`. Each matched GitHub's recorded git blob hash. Their content was inspected before use: ribbons and a landscape, with no people. Place them in `samples/official/`.
+- **Official test files** (CC-BY-SA-4.0). Five files from https://github.com/c2pa-org/public-testfiles under `legacy/1.4/image/jpeg/`: `adobe-20220124-CA.jpg`, `-E-sig-CA.jpg`, `-E-dat-CA.jpg`, `-E-uri-CA.jpg` and `truepic-20230212-landscape.jpg`. Each matched GitHub's recorded git blob hash. Their content was inspected before use: ribbons and a landscape, with no people. Place them in `samples/official/`, or set `AUTHEXP_OFFICIAL_DIR` to their folder.
 - **Bundled test credentials.** These are the `sample/` files in the release zip. The signing certificate's subject is "C2PA Test Signing Cert", with OU "FOR TESTING_ONLY", valid 2022-06-10 to 2030-08-26.
+  - **The matching private key (`sample/es256_private.key`) is published inside the release zip.** Anyone can therefore produce signatures that validate as `Trusted` under the C2PA test root.
+  - In this repository, `Trusted` means only "chains to the public C2PA test root". It never means production trust.
 
 **Offline controls:**
 - Every `c2patool` run is wrapped in `sandbox-exec` with all network access denied.
@@ -143,30 +164,33 @@ This part used one narrowly approved download: the official C2PA command-line to
 | Official `E-sig-CA` / `E-dat-CA` / `E-uri-CA` | `Invalid`: `claimSignature.mismatch` / `assertion.dataHash.mismatch` / `assertion.hashedURI.mismatch` | `Invalid` | Each documented failure is reproduced. `E-dat` decodes to pixels identical to `CA`: the binding covers file bytes, not appearance. |
 | Official Truepic camera sample (production signer) | `Valid`, untrusted | `Valid`, untrusted | No production trust list was configured, because fetching one was out of scope. Untrusted here is not evidence of manipulation. |
 | Bundled `image.jpg` | `NO_MANIFEST` | `NO_MANIFEST` | Absence is not evidence either way |
-| Synthetic PNG or JPEG signed with test credentials, unchanged | `Valid`, untrusted | `Trusted` | The signer's declaration (`algorithmicMedia`) is intact |
-| Same PNG: lossless re-compression (identical pixels), one value changed, 8 px crop, or manifest moved to another image | `Invalid` (`assertion.dataHash.mismatch`) | `Invalid` | Benign and malicious changes look the same, so no conclusion about origin |
-| Same JPEG: lossless `jpegtran -copy all -optimize` | `Invalid` (`assertion.dataHash.mismatch`) | `Invalid` | Even a lossless transcode breaks the hard binding |
-| Manifest chunk removed; macOS `sips` PNG or JPEG re-save; JPEG q75 re-encode; `jpegtran -copy none` | `NO_MANIFEST` | `NO_MANIFEST` | Ordinary conversions strip credentials |
-| Synthetic image signed with test credentials but deliberately declared `digitalCapture` | `Valid`, untrusted | `Trusted` | **A valid, trusted signature on a false claim.** Trust attests the signer, not the truth. |
+| Synthetic PNG or JPEG signed with test credentials, unchanged | `Valid`, untrusted | `Trusted` (public test root) | The signer's declaration (`algorithmicMedia`) is intact |
+| Same PNG: lossless re-compression of the image data (identical pixels), one value changed, 8 px crop, or manifest moved to another image | `Invalid` (`assertion.dataHash.mismatch`) | `Invalid` | In these PNG cases, benign and deliberate changes produced the same state, so no conclusion about origin is supported |
+| Same JPEG: `jpegtran -copy all -optimize` (lossless, all markers copied) | `Invalid` (`assertion.dataHash.mismatch`) | `Invalid` | This lossless transcode changed the file bytes and broke the hard binding. Other lossless tools were not tested. |
+| Manifest chunk removed by our script; macOS 27.2.1 `sips` re-save (PNG to PNG, JPEG to JPEG at quality 80); libjpeg-turbo 3.1.0 decode then `cjpeg -quality 75`; `jpegtran -copy none` | `NO_MANIFEST` | `NO_MANIFEST` | These specific conversions removed the manifest in this run. Other tools, versions and platform pipelines were not tested. |
+| Synthetic image signed with the public test credentials but deliberately declared `digitalCapture` | `Valid`, untrusted | `Trusted` (public test root) | A signature that validates as `Trusted` under the public test root can carry a claim we deliberately made false: validation attests the signer and the binding, not the truth of the claim. **This does not show a production-trusted signer making a false claim; that case was not evaluated.** |
+
+**Timestamps (not examined):**
+- The official samples report `timeStamp.validated` and `timeStamp.trusted` even with no trust anchors configured and network access denied. Two things were not examined: what c2patool 0.27.23 treats as a trusted timestamp authority, and timestamp-authority revocation.
+- The synthetic signatures carry no timestamp. Their `Valid` and `Trusted` states therefore depend on the test signing certificate being inside its validity period when validated. It expires on 2030-08-26, and results after that date may differ.
 
 **Limits of the actual run:**
-- One `c2patool` version on one machine.
+- One `c2patool` version (0.27.23) on one machine.
 - JPEG and PNG only; no video, audio or other formats.
-- Only the C2PA *test* trust anchors were used. No production trust list, OCSP or revocation status was fetched.
-- The synthetic signatures carry no trusted timestamp.
-- `sips` behaviour is specific to this macOS version.
+- Only the listed conversions were tested: our chunk edits, macOS 27.2.1 `sips`, libjpeg-turbo 3.1.0 (`cjpeg`, `djpeg`, `jpegtran -copy all -optimize` and `jpegtran -copy none`). Results for other tools, versions or platforms may differ.
+- Only the public C2PA *test* trust anchors were used. No production trust list, OCSP or revocation status was fetched, so production trust was not evaluated.
+- Timestamp-authority trust and revocation were not examined. The synthetic signatures carry no timestamp.
 - Social-media platform pipelines were not tested, because that would have required uploads.
 
 ## Other actual signals (not evaluated)
 
-See [`docs/ACTUAL_SIGNAL_ROUTES.md`](docs/ACTUAL_SIGNAL_ROUTES.md). In short:
-- Production watermarks (`invisible-watermark`, TrustMark, Video Seal), SynthID and AI-image detectors were **not approved or run**, so they remain unevaluated.
+- Production watermarks (`invisible-watermark`, TrustMark, Video Seal), SynthID and AI-image detectors were **not evaluated** in this repository.
 - SynthID can only be checked by uploading to Google.
 - AI-image detectors need PyTorch, model weights and a licensed test set.
 
-## Relation to the research report
+## What the toy part illustrates
 
-`docs/` contains the user-facing research report and its source ledger. The experiment illustrates these claims from the report, using toy stand-ins:
+Using toy stand-ins, it illustrates these distinctions:
 - a valid provenance signal supports specific claims, not truth;
 - valid is not trusted;
 - absence of provenance is not evidence either way;
@@ -174,4 +198,4 @@ See [`docs/ACTUAL_SIGNAL_ROUTES.md`](docs/ACTUAL_SIGNAL_ROUTES.md). In short:
 - watermarks can be removed or spoofed;
 - plain metadata is unverified.
 
-It does not test the report's claims about real-world detector performance, legal processes or NCII.
+It does not test real-world detector performance, legal processes or NCII.

@@ -7,6 +7,7 @@ This is separate from the toy preparation in RESULTS.md. It uses the official `c
 **Trust conditions:**
 - *No trust anchors:* nothing is configured as trusted.
 - *Test trust anchors:* the C2PA **test** root bundled with c2patool (FOR TESTING ONLY). "Trusted" therefore means "chains to the test root" here, not to any production trust list.
+- The test signing certificate's private key (`sample/es256_private.key`) is published inside the c2patool release zip. Anyone can therefore produce signatures that validate as "Trusted" under the test root.
 
 **These states describe signatures, bindings and trust configuration. They are not verdicts on whether a scene is real.** AI-image detectors, SynthID and production watermarks remain unevaluated.
 
@@ -41,6 +42,20 @@ Sources: https://github.com/c2pa-org/public-testfiles (`legacy/1.4/image/jpeg`, 
 | B03_jpeg_lossless_transcode_markers_dropped | jpegtran -copy none (lossless; extra markers dropped). |  | `NO_MANIFEST` | Error: No claim found | `NO_MANIFEST` | - |
 | B04_jpeg_reencode_q75 | Decoded and re-encoded at JPEG quality 75 (libjpeg-turbo). |  | `NO_MANIFEST` | Error: No claim found | `NO_MANIFEST` | - |
 | B05_jpeg_sips_resave_q80 | Signed JPEG re-saved as JPEG (quality 80) by macOS sips. |  | `NO_MANIFEST` | Error: No claim found | `NO_MANIFEST` | - |
+
+**Notes on section 2:**
+- **A08.** A signature that validates as "Trusted" under the public test root can carry a claim we deliberately made false. Validation attests the signer and the binding, not the truth of the claim. A08 does **not** show a production-trusted signer making a false claim; that case was not evaluated.
+- **Conversions tested.** Only the listed conversions were tested:
+  - our PNG chunk edits;
+  - macOS `sips` re-saves (PNG to PNG; JPEG to JPEG at quality 80);
+  - libjpeg-turbo: `djpeg` then `cjpeg -quality 75`, `jpegtran -copy all -optimize`, and `jpegtran -copy none`.
+- **Recorded-run environment.** The run recorded in `results/actual_c2pa/actual_c2pa_results.json` with SHA-256 `8a09427f0fff7889868ea6c1152fb2c5088187f3fb31b680eb3e0ef970967fe1` used macOS 27.2.1 and libjpeg-turbo 3.1.0. These two versions describe that recorded run only. They are not stored in the results file and are not re-detected when this page is regenerated, so they say nothing about the machine that regenerates the page or about any other run.
+- **Scope.** Other tools, versions and platform pipelines were not tested. All results are for c2patool 0.27.23 on JPEG and PNG only.
+
+## Timestamps (not examined)
+
+- The official samples report `timeStamp.validated` and `timeStamp.trusted` even with no trust anchors configured and network access denied. Two things were not examined: what c2patool 0.27.23 treats as a trusted timestamp authority, and timestamp-authority revocation.
+- The synthetic signatures carry no timestamp. Their `Valid` and `Trusted` states depend on the test signing certificate being inside its validity period when validated. It expires on 2030-08-26, and results after that date may differ.
 
 ## 3. What each state supports
 
