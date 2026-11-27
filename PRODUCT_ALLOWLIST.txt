@@ -58,3 +58,10 @@ web/vendor/c2pa-utilities/signingAlg.js
 web/vendor/c2pa-utilities/assetSize.js
 web/vendor/highgain/index.js
 web/vendor/ts-deepmerge/index.js
+RESULTS_WATERMARK.md
+RESULTS_DETECTOR.md
+watermark_eval/run_watermark_eval.py
+detector_eval/run_detector_eval.py
+results/watermark/watermark_results.json
+results/detector/detector_results_synthbuster.json
+results/detector/detector_results_cifake.json

@@ -6,7 +6,7 @@
 > 2. **Toy preparation**: `authexp/`, `run_experiment.py` and [`RESULTS.md`](RESULTS.md). These use a toy signed manifest (not C2PA) and a toy watermark (not SynthID or any production scheme). They are preparation only, and their results do not settle questions about actual signals.
 > 3. **Actual C2PA evaluation**: `actual_c2pa/` and [`RESULTS_ACTUAL_C2PA.md`](RESULTS_ACTUAL_C2PA.md). These run the official `c2patool` offline on official C2PA test files, and on synthetic images signed with c2patool's bundled TEST credentials. See "Actual C2PA evaluation" below.
 >
-> **Still unevaluated:** production watermarks, SynthID and AI-image detectors. See "Other actual signals (not evaluated)" below.
+> **Also now evaluated:** one production watermark (`invisible-watermark`, see [`RESULTS_WATERMARK.md`](RESULTS_WATERMARK.md)) and one AI-image detector (Community Forensics ViT, see [`RESULTS_DETECTOR.md`](RESULTS_DETECTOR.md)). **Still unevaluated:** SynthID and other detectors/schemes. See "Other actual signals" below.
 
 A small, bounded, offline preparation exercise. Using toy mechanisms, it shows what three kinds of signal can and cannot establish about an image:
 - provenance (a signed manifest);
@@ -182,11 +182,11 @@ This part uses the official C2PA command-line tool and a few official C2PA test 
 - Timestamp-authority trust and revocation were not examined. The synthetic signatures carry no timestamp.
 - Social-media platform pipelines were not tested, because that would have required uploads.
 
-## Other actual signals (not evaluated)
+## Other actual signals
 
-- Production watermarks (`invisible-watermark`, TrustMark, Video Seal), SynthID and AI-image detectors were **not evaluated** in this repository.
-- SynthID can only be checked by uploading to Google.
-- AI-image detectors need PyTorch, model weights and a licensed test set.
+- **Production watermark (evaluated):** `invisible-watermark` 0.2.0 (dwtDctSvd + rivaGan) on the repo's own synthetic images — [`RESULTS_WATERMARK.md`](RESULTS_WATERMARK.md). Headline: the classical mark dies at ordinary JPEG quality and every tested WebP quality; the neural mark is domain-sensitive; neither transferred in the copy attack.
+- **AI-image detector (evaluated):** Community Forensics ViT-Small (OwensLab, MIT) on pinned public test sets — [`RESULTS_DETECTOR.md`](RESULTS_DETECTOR.md). Headline: works at full resolution (0.91 balanced) but degrades with generator recency (FLUX 66%), JPEG recompression (q50 → 38% detected) and small inputs (32×32 → coin flip). The only browser-ready ONNX export is defective.
+- **Not evaluated:** SynthID (checking it requires uploading to Google — incompatible with the offline rule), TrustMark, Video Seal, other detectors and other datasets.
 
 ## What the toy part illustrates
 
