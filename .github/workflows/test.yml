@@ -61,9 +61,19 @@ jobs:
           python3 make_manifest.py
           git diff --exit-code MANIFEST.md
 
-  pages:
+  pages-upload:
     needs: tests
     if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/product' || github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web
+
+  pages-deploy:
+    needs: pages-upload
     runs-on: ubuntu-latest
     permissions:
       pages: write
@@ -72,10 +82,5 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: web
       - id: deployment
         uses: actions/deploy-pages@v4
