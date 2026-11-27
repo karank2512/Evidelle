@@ -75,6 +75,10 @@ jobs:
   pages-deploy:
     needs: pages-upload
     runs-on: ubuntu-latest
+    # Serialize Pages deployments: concurrent runs race at the "create deployment" API.
+    concurrency:
+      group: github-pages
+      cancel-in-progress: false
     permissions:
       pages: write
       id-token: write
