@@ -1,9 +1,10 @@
 # Offline authenticity-signal prep: toy mechanisms (synthetic, non-intimate)
 
-> **This repository has two separate parts.**
+> **This repository has three separate parts.**
 >
-> 1. **Toy preparation**: `authexp/`, `run_experiment.py` and [`RESULTS.md`](RESULTS.md). These use a toy signed manifest (not C2PA) and a toy watermark (not SynthID or any production scheme). They are preparation only, and their results do not settle questions about actual signals.
-> 2. **Actual C2PA evaluation**: `actual_c2pa/` and [`RESULTS_ACTUAL_C2PA.md`](RESULTS_ACTUAL_C2PA.md). These run the official `c2patool` offline on official C2PA test files, and on synthetic images signed with c2patool's bundled TEST credentials. See "Actual C2PA evaluation" below.
+> 1. **The web app** (`web/`): a static page that checks JPEG, PNG or WebP images for C2PA Content Credentials **in the browser, on the device** — the file is never uploaded. It reports the same honest labels as the rest of the repo, now against two pinned production trust lists. See "The web app" below and [`web/README.md`](web/README.md).
+> 2. **Toy preparation**: `authexp/`, `run_experiment.py` and [`RESULTS.md`](RESULTS.md). These use a toy signed manifest (not C2PA) and a toy watermark (not SynthID or any production scheme). They are preparation only, and their results do not settle questions about actual signals.
+> 3. **Actual C2PA evaluation**: `actual_c2pa/` and [`RESULTS_ACTUAL_C2PA.md`](RESULTS_ACTUAL_C2PA.md). These run the official `c2patool` offline on official C2PA test files, and on synthetic images signed with c2patool's bundled TEST credentials. See "Actual C2PA evaluation" below.
 >
 > **Still unevaluated:** production watermarks, SynthID and AI-image detectors. See "Other actual signals (not evaluated)" below.
 
@@ -58,6 +59,14 @@ AUTHEXP_C2PATOOL_DIR=/path/to/c2patool AUTHEXP_OFFICIAL_DIR=/path/to/official-sa
 An empty `AUTHEXP_C2PATOOL_DIR` or `AUTHEXP_OFFICIAL_DIR` counts as unset. With `EVIDELLE_KEEP_TEST_FILES=1`, the tests in `tests/test_actual_c2pa.py` and `tests/test_actual_c2pa_regression.py` delete nothing: every temporary folder they create is left in place. `tests/test_core.py` does not honour this variable; it and the experiment's helpers it calls use temporary folders that Python removes automatically.
 
 The product consists of exactly the files listed in [`PRODUCT_ALLOWLIST.txt`](PRODUCT_ALLOWLIST.txt). `MANIFEST.md` records their hashes.
+
+## The web app
+
+`web/` is the usable tool: a static page that checks JPEG, PNG or WebP images (up to 25 MB) for C2PA Content Credentials **entirely in the browser**. The verification runs in a pinned copy of the official `@contentauth/c2pa-web` WebAssembly build, vendored under `web/vendor/`; the file never leaves the device, and the page's `connect-src 'none'` policy makes a network request impossible after loading. It works on phones and installs as a PWA, after which it also works fully offline.
+
+It reports the same fixed label set as the repo — **Intact · Doesn't match · Fails validation · No credential · Unknown** — and never a real-or-fake verdict. Trust is checked against two pinned lists fetched once and recorded in [`web/PINS.md`](web/PINS.md): the official C2PA conformance list and the frozen CAI interim list (what verify.contentauthenticity.org uses), shown as separate results. Files signed with the public C2PA test credential are labelled "TEST credential" — its private key is published, so it proves a valid signature only.
+
+To run locally: `cd web && python3 -m http.server 8077`. `python3 web/check_web.py` verifies the pins, the regenerated trust module and the service-worker's asset list without a browser.
 
 ## What was tested
 
